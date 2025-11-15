@@ -1,16 +1,27 @@
-﻿import 'package:sqflite/sqflite.dart';
-import '../../../models/schedule.dart';
+﻿import 'package:login_db_demo/models/schedule.dart';
+import 'package:sqflite/sqflite.dart';
 import '../app_db.dart';
 
+// Untuk join view di ListView (nama guru, dll)
+class ScheduleWithDetails {
+  final Schedule schedule;
+  final String teacherName;
+
+  ScheduleWithDetails({
+    required this.schedule,
+    required this.teacherName,
+  });
+}
+
 class ScheduleDao {
-  Future<int> insert(Schedule schedule) async {
+  Future<int> insert(Schedule s) async {
     final db = await AppDb().database;
-    return db.insert('schedules', schedule.toMap(), conflictAlgorithm: ConflictAlgorithm.abort);
+    return db.insert('schedules', s.toMap());
   }
 
-  Future<int> update(Schedule schedule) async {
+  Future<int> update(Schedule s) async {
     final db = await AppDb().database;
-    return db.update('schedules', schedule.toMap(), where: 'id = ?', whereArgs: [schedule.id]);
+    return db.update('schedules', s.toMap(), where: 'id = ?', whereArgs: [s.id]);
   }
 
   Future<int> delete(int id) async {
@@ -18,15 +29,35 @@ class ScheduleDao {
     return db.delete('schedules', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<Schedule?> findById(int id) async {
-    final db = await AppDb().database;
-    final rows = await db.query('schedules', where: 'id = ?', whereArgs: [id]);
-    return rows.isEmpty ? null : Schedule.fromMap(rows.first);
-  }
-
   Future<List<Schedule>> getAll() async {
     final db = await AppDb().database;
     final rows = await db.query('schedules');
     return rows.map((row) => Schedule.fromMap(row)).toList();
   }
+
+  Future<List<Schedule>> getByKelasJurusan(String kelas, String jurusan) async {
+    final db = await AppDb().database;
+    final rows = await db.query(
+      'schedules',
+      where: 'kelas = ? AND jurusan = ?',
+      whereArgs: [kelas, jurusan],
+    );
+    return rows.map((row) => Schedule.fromMap(row)).toList();
+  }
+
+  // Join untuk mendapatkan jadwal plus nama guru (detail tampilan)
+Future<List<ScheduleWithDetails>> getAllWithDetails() async {
+  final db = await AppDb().database;
+  final rows = await db.rawQuery('''
+    SELECT s.*, t.name AS teacher_name
+    FROM schedules s
+    LEFT JOIN teachers t ON s.teacher_id = t.id
+    ORDER BY s.kelas, s.jurusan, s.day, s.time
+  ''');
+  return rows.map((row) => ScheduleWithDetails(
+    schedule: Schedule.fromMap(row),
+    teacherName: row['teacher_name']?.toString() ?? '-',
+  )).toList();
+}
+
 }

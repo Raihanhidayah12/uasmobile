@@ -1,22 +1,27 @@
 ﻿class Announcement {
-  final int id;
+  final int? id;
   final String title;
   final String content;
-  final DateTime createdAt;
+  final String createdAt;
 
-  Announcement({required this.id, required this.title, required this.content, required this.createdAt});
+  Announcement({
+    this.id,
+    required this.title,
+    required this.content,
+    required this.createdAt,
+  });
 
   factory Announcement.fromMap(Map<String, dynamic> map) => Announcement(
         id: map['id'],
-        title: map['title'],
-        content: map['content'],
-        createdAt: DateTime.parse(map['created_at']),
+        title: map['title'] ?? '',
+        content: map['content'] ?? '',
+        createdAt: map['created_at'] ?? '',
       );
 
   Map<String, dynamic> toMap() => {
-        'id': id,
+        if (id != null) 'id': id,
         'title': title,
         'content': content,
-        'created_at': createdAt.toIso8601String(),
+        'created_at': createdAt,
       };
 }

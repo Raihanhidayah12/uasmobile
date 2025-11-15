@@ -3,14 +3,14 @@ import '../../../models/announcement.dart';
 import '../app_db.dart';
 
 class AnnouncementDao {
-  Future<int> insert(Announcement ann) async {
+  Future<int> insert(Announcement a) async {
     final db = await AppDb().database;
-    return db.insert('announcements', ann.toMap(), conflictAlgorithm: ConflictAlgorithm.abort);
+    return db.insert('announcements', a.toMap());
   }
 
-  Future<int> update(Announcement ann) async {
+  Future<int> update(Announcement a) async {
     final db = await AppDb().database;
-    return db.update('announcements', ann.toMap(), where: 'id = ?', whereArgs: [ann.id]);
+    return db.update('announcements', a.toMap(), where: 'id = ?', whereArgs: [a.id]);
   }
 
   Future<int> delete(int id) async {
@@ -18,15 +18,9 @@ class AnnouncementDao {
     return db.delete('announcements', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<Announcement?> findById(int id) async {
-    final db = await AppDb().database;
-    final rows = await db.query('announcements', where: 'id = ?', whereArgs: [id]);
-    return rows.isEmpty ? null : Announcement.fromMap(rows.first);
-  }
-
   Future<List<Announcement>> getAll() async {
     final db = await AppDb().database;
-    final rows = await db.query('announcements');
-    return rows.map((row) => Announcement.fromMap(row)).toList();
+    final rows = await db.query('announcements', orderBy: 'created_at DESC');
+    return rows.map((r) => Announcement.fromMap(r)).toList();
   }
 }

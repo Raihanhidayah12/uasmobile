@@ -2,167 +2,216 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool isDark = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
+    // Pilih warna text kuat manual jika light
+    Color getTitleColor() =>
+        isDark ? Colors.white.withOpacity(0.96) : Colors.deepPurple[700]!;
+    Color getBodyColor() =>
+        isDark ? Colors.white70 : Colors.grey[900]!;
+    Color getHighlightColor() =>
+        isDark ? Colors.indigoAccent[100]! : Colors.indigo[700]!;
 
     return Scaffold(
-      body: Container(
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDark
-                ? [Colors.grey[900]!, Colors.grey[850]!]
-                : [
-                    theme.colorScheme.primary.withOpacity(0.9),
-                    theme.colorScheme.primaryContainer.withOpacity(0.95)
-                  ],
+                ? [const Color(0xFF232946), const Color(0xFF121629), Colors.black]
+                : [const Color(0xFF6E9FFF), const Color(0xFFD3C2E7), Colors.white],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icon utama dengan glass
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundColor:
-                            isDark ? Colors.white24 : Colors.white.withOpacity(0.2),
-                        child: Icon(
-                          Icons.school_rounded,
-                          size: 80,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Judul
-                  Text(
-                    'Selamat Datang di\nSistem Informasi Akademik',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onBackground,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Deskripsi dengan glass
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Animated Card Container (tanpa icon di atas card)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeInOutCubicEmphasized,
+                        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 32),
                         width: double.infinity,
-                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
+                              ? Colors.white.withOpacity(0.04)
+                              : Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(30),
                           border: Border.all(
-                            color: isDark
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.white.withOpacity(0.15),
+                            color: isDark ? Colors.white.withOpacity(0.09) : Colors.white.withOpacity(0.18),
+                            width: 1.3,
                           ),
-                        ),
-                        child: Text(
-                          'Aplikasi ini memudahkan siswa, guru, dan admin '
-                          'dalam mengelola data akademik seperti jadwal, nilai, dan pengumuman.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.9),
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Highlight / ilustrasi glass
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.white.withOpacity(0.15),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            "📘 Belajar lebih mudah dengan aplikasi akademik digital",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark ? Colors.blueGrey.withOpacity(0.13) : Colors.blueGrey.withOpacity(0.08),
+                              offset: const Offset(0, 10), blurRadius: 38,
                             ),
-                          ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Logo/ikon utama
+                            CircleAvatar(
+                              radius: 54,
+                              backgroundColor: isDark ?
+                                Colors.white.withOpacity(0.10) :
+                                Colors.deepPurple[100]!.withOpacity(0.17),
+                              child: Icon(
+                                Icons.school_rounded,
+                                size: 63,
+                                color: getHighlightColor(),
+                              ),
+                            ),
+                            const SizedBox(height: 23),
+                            Text(
+                              'Akademik Digital\nBrawijaya',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: getTitleColor(),
+                                letterSpacing: 0.7,
+                              ),
+                            ),
+                            const SizedBox(height: 13),
+                            Text(
+                              "Sistem manajemen data sekolah & kampus modern.\nCek jadwal, nilai, & pengumuman hanya di sini.",
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: getBodyColor(),
+                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 23),
+                            // Glass highlight
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 330),
+                              curve: Curves.ease,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                  child: Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withOpacity(0.11)
+                                          : Colors.white.withOpacity(0.20),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                                    child: Center(
+                                      child: Text(
+                                        "Simple  •  Aman  •  Fast",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: getHighlightColor(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 27),
+                            // Login Button
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              width: isDark ? 225 : 220,
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  backgroundColor: isDark ? Colors.blue[800] : Colors.deepPurple[400],
+                                  foregroundColor: Colors.white,
+                                  elevation: 9,
+                                ),
+                                icon: const Icon(Icons.login_rounded),
+                                label: const Text(
+                                  'Masuk ke Sistem',
+                                  style: TextStyle(
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: .2),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Tombol Login modern
-                  SizedBox(
-                    width: 200,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                      const SizedBox(height: 32),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 400),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.39)
+                              : Colors.blueGrey.withOpacity(0.69),
+                          fontSize: 13,
                         ),
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 6,
-                        shadowColor: Colors.black45,
+                        child: const Text("© 2025 Brawijaya Akademik App"),
                       ),
-                      icon: const Icon(Icons.login),
-                      label: const Text(
-                        'Login',
-                        style:
-                            TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
-                        );
-                      },
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              // Tombol theme switch
+              Positioned(
+                top: 19,
+                right: 15,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white10 : Colors.deepPurple.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: IconButton(
+                    tooltip: isDark ? "Mode terang" : "Mode gelap",
+                    icon: Icon(
+                      isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+                      color: isDark
+                          ? Colors.amberAccent[200]
+                          : Colors.deepPurple.shade400,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isDark = !isDark;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

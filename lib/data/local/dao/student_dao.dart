@@ -2,22 +2,24 @@
 import '../app_db.dart';
 import '../../../models/student.dart';
 
-/// Wrapper Student + email user
 class StudentWithUser {
   final Student student;
   final String email;
+  final String role;
 
-  StudentWithUser({required this.student, required this.email});
+  StudentWithUser({
+    required this.student,
+    required this.email,
+    required this.role,
+  });
 }
 
 class StudentDao {
-  /// Generate NIS otomatis (mulai 202500000)
   Future<String> generateNextNis() async {
     final db = await AppDb().database;
     final rows = await db.rawQuery(
       'SELECT nis FROM students ORDER BY id DESC LIMIT 1'
     );
-
     if (rows.isEmpty || rows.first['nis'] == null) {
       return "202500000";
     } else {
@@ -26,7 +28,6 @@ class StudentDao {
     }
   }
 
-  /// Hitung jumlah siswa dalam 1 kelas + jurusan
   Future<int> countByClassAndMajor(String kelas, String jurusan) async {
     final db = await AppDb().database;
     final result = await db.rawQuery(
@@ -36,22 +37,16 @@ class StudentDao {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  /// Insert siswa baru
   Future<int> insert(Student student) async {
     final db = await AppDb().database;
-
-    // ✅ Validasi kapasitas kelas + jurusan
     final total = await countByClassAndMajor(student.kelas, student.jurusan);
     if (total >= 30) {
       throw Exception(
           "Kelas ${student.kelas} - ${student.jurusan} sudah penuh (maks 30 siswa)");
     }
-
-    // 📌 Auto generate NIS jika kosong
     final nis = (student.nis?.isEmpty ?? true)
         ? await generateNextNis()
         : student.nis!;
-
     return await db.insert(
       'students',
       {
@@ -62,7 +57,6 @@ class StudentDao {
     );
   }
 
-  /// Ambil semua siswa (urut per kelas lalu nama)
   Future<List<Student>> getAll() async {
     final db = await AppDb().database;
     final rows = await db.query(
@@ -72,25 +66,24 @@ class StudentDao {
     return rows.map((r) => Student.fromMap(r)).toList();
   }
 
-  /// Ambil semua siswa + email user
+  // 🚩 FULL UPDATE: Query join ambil role user
   Future<List<StudentWithUser>> getAllWithUser() async {
     final db = await AppDb().database;
     final rows = await db.rawQuery('''
-      SELECT s.*, u.email 
+      SELECT s.*, u.email, u.role
       FROM students s
       JOIN users u ON u.id = s.user_id
       ORDER BY s.kelas ASC, s.name ASC
     ''');
-
     return rows.map((r) {
       return StudentWithUser(
         student: Student.fromMap(r),
         email: r['email'] as String,
+        role: r['role'] as String,
       );
     }).toList();
   }
 
-  /// Cari siswa berdasarkan id
   Future<Student?> findById(int id) async {
     final db = await AppDb().database;
     final rows = await db.query(
@@ -102,7 +95,6 @@ class StudentDao {
     return rows.isEmpty ? null : Student.fromMap(rows.first);
   }
 
-  /// Cari siswa berdasarkan user_id
   Future<Student?> findByUserId(int userId) async {
     final db = await AppDb().database;
     final rows = await db.query(
@@ -114,17 +106,13 @@ class StudentDao {
     return rows.isEmpty ? null : Student.fromMap(rows.first);
   }
 
-  /// Update data siswa
   Future<int> update(Student student) async {
     final db = await AppDb().database;
-
-    // Jika pindah kelas/jurusan, validasi kuota lagi
     final total = await countByClassAndMajor(student.kelas, student.jurusan);
     if (total >= 30) {
       throw Exception(
           "Kelas ${student.kelas} - ${student.jurusan} sudah penuh (maks 30 siswa)");
     }
-
     return await db.update(
       'students',
       student.toMap(),
@@ -133,7 +121,6 @@ class StudentDao {
     );
   }
 
-  /// Hapus siswa
   Future<int> delete(int id) async {
     final db = await AppDb().database;
     return await db.delete(
@@ -143,7 +130,6 @@ class StudentDao {
     );
   }
 
-  /// Hapus siswa berdasarkan userId
   Future<int> deleteByUserId(int userId) async {
     final db = await AppDb().database;
     return await db.delete(
@@ -153,7 +139,6 @@ class StudentDao {
     );
   }
 
-  /// Ambil siswa berdasarkan kelas
   Future<List<Student>> getByKelas(String kelas) async {
     final db = await AppDb().database;
     final rows = await db.query(

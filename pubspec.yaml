@@ -21,6 +21,7 @@ dependencies:
   sqflite: ^2.3.3
   sqflite_common_ffi: ^2.3.2
   path: ^1.9.0
+  path_provider: ^2.1.2      # <= tambahkan ini, WAJIB untuk Android!
 
   # Security
   crypto: ^3.0.3
@@ -35,7 +36,6 @@ dependencies:
 
   # ✅ Notifikasi lokal
   flutter_local_notifications: ^17.2.4
-
 
 dev_dependencies:
   flutter_test:

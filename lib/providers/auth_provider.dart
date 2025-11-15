@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../core/hashing.dart'; // generateSalt & hashPassword
+import '../core/hashing.dart'; // gunakan hash SALT+PASSWORD, generateSalt yang benar
 import '../data/local/dao/user_dao.dart';
-import '../models/user.dart';
+import '../models/user.dart' hide AppUser;
 
 class AuthProvider extends ChangeNotifier {
   final _dao = UserDao();
@@ -21,7 +21,7 @@ class AuthProvider extends ChangeNotifier {
     _restoreSession();
   }
 
-  /// ✅ Restore session dari secure storage
+  /// Restore session dari storage
   Future<void> _restoreSession() async {
     try {
       final idStr = await _storage.read(key: 'uid');
@@ -35,44 +35,40 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
- /// ✅ Register user baru
-Future<bool> register(String email, String password, {String role = "siswa_pending"}) async {
-  _error = null;
-  try {
-    final existing = await _dao.findByEmail(email.trim());
-    if (existing != null) {
-      _error = 'Email sudah terdaftar';
+  /// Register user baru dengan hash password (salt+password) dan salt
+  Future<bool> register(String email, String password, {String role = "siswa_pending"}) async {
+    _error = null;
+    try {
+      final existing = await _dao.findByEmail(email.trim());
+      if (existing != null) {
+        _error = 'Email sudah terdaftar';
+        notifyListeners();
+        return false;
+      }
+      final salt = generateSalt();
+      final hash = hashPassword(password, salt); // GABUNGAN SALT+PASSWORD
+      final id = await _dao.insert(
+        AppUser(
+          email: email.trim(),
+          passwordHash: hash,
+          salt: salt,
+          role: role,
+          password: '',
+        ),
+      );
+      final user = await _dao.findById(id);
+      _current = user;
+      await _storage.write(key: 'uid', value: user!.id.toString());
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Gagal register: $e';
       notifyListeners();
       return false;
     }
-
-    // 🔑 Hash password pakai salt
-    final salt = generateSalt();
-    final hash = hashPassword(password, salt);
-
-    final id = await _dao.insert(
-      AppUser(
-        email: email.trim(),
-        passwordHash: hash,
-        salt: salt,
-        role: role, password: '', // otomatis "siswa_pending" kalau tidak dikirim
-      ),
-    );
-
-    final user = await _dao.findById(id);
-    _current = user;
-    await _storage.write(key: 'uid', value: user!.id.toString());
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _error = 'Gagal register: $e';
-    notifyListeners();
-    return false;
   }
-}
 
-
-  /// ✅ Login user
+  /// Login user menggunakan hash password (salt+password, salt dari DB)
   Future<bool> login(String email, String password) async {
     _error = null;
     try {
@@ -82,22 +78,17 @@ Future<bool> register(String email, String password, {String role = "siswa_pendi
         notifyListeners();
         return false;
       }
-
-      // 🔑 Hash password input pakai salt dari DB
-      final hash = hashPassword(password, user.salt);
+      final hash = hashPassword(password, user.salt); // Konsisten: SALT+PASSWORD
       if (hash != user.passwordHash) {
         _error = 'Password salah';
         notifyListeners();
         return false;
       }
-
-      // 🔑 Role check
       if (user.role == "siswa_pending") {
         _error = "Akun Anda menunggu verifikasi admin";
         notifyListeners();
         return false;
       }
-
       _current = user;
       await _storage.write(key: 'uid', value: user.id.toString());
       notifyListeners();
@@ -109,7 +100,7 @@ Future<bool> register(String email, String password, {String role = "siswa_pendi
     }
   }
 
-  /// ✅ Logout user
+  /// Logout dan hapus session
   Future<void> logout() async {
     _current = null;
     await _storage.delete(key: 'uid');
