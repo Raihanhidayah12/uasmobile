@@ -1,12 +1,13 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../core/hashing.dart'; // gunakan hash SALT+PASSWORD, generateSalt yang benar
 import '../data/local/dao/user_dao.dart';
-import '../models/user.dart' hide AppUser;
 
 class AuthProvider extends ChangeNotifier {
   final _dao = UserDao();
   final _storage = const FlutterSecureStorage();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AppUser? _current;
   AppUser? get current => _current;
@@ -24,10 +25,19 @@ class AuthProvider extends ChangeNotifier {
   /// Restore session dari storage
   Future<void> _restoreSession() async {
     try {
-      final idStr = await _storage.read(key: 'uid');
-      if (idStr != null) {
-        final u = await _dao.findById(int.parse(idStr));
+      final user = _auth.currentUser;
+      if (user != null) {
+        final u = await _dao.findByEmail(user.email!.trim());
         _current = u;
+        if (u != null) {
+          await _storage.write(key: 'uid', value: u.id!.toString());
+        }
+      } else {
+        final idStr = await _storage.read(key: 'uid');
+        if (idStr != null) {
+          final u = await _dao.findById(int.parse(idStr));
+          _current = u;
+        }
       }
     } finally {
       _loading = false;
@@ -45,6 +55,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return false;
       }
+      await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
       final salt = generateSalt();
       final hash = hashPassword(password, salt); // GABUNGAN SALT+PASSWORD
       final id = await _dao.insert(
@@ -72,15 +83,24 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     _error = null;
     try {
-      final user = await _dao.findByEmail(email.trim());
+      await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+      var user = await _dao.findByEmail(email.trim());
       if (user == null) {
-        _error = 'Email tidak ditemukan';
-        notifyListeners();
-        return false;
+        final salt = generateSalt();
+        final hash = hashPassword(password, salt);
+        final id = await _dao.insert(
+          AppUser(
+            email: email.trim(),
+            passwordHash: hash,
+            salt: salt,
+            role: 'siswa',
+            password: '',
+          ),
+        );
+        user = await _dao.findById(id);
       }
-      final hash = hashPassword(password, user.salt); // Konsisten: SALT+PASSWORD
-      if (hash != user.passwordHash) {
-        _error = 'Password salah';
+      if (user == null) {
+        _error = 'Gagal login: data lokal tidak ditemukan';
         notifyListeners();
         return false;
       }
@@ -90,7 +110,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
       _current = user;
-      await _storage.write(key: 'uid', value: user.id.toString());
+      if (user.id != null) {
+        await _storage.write(key: 'uid', value: user.id!.toString());
+      }
       notifyListeners();
       return true;
     } catch (e) {
@@ -104,6 +126,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _current = null;
     await _storage.delete(key: 'uid');
+    await _auth.signOut();
     notifyListeners();
   }
 }

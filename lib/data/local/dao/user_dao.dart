@@ -1,6 +1,5 @@
-﻿import 'package:sqflite/sqflite.dart';
-import '../../../models/user.dart';
-import '../app_db.dart';
+import 'package:sqflite/sqflite.dart';
+import '../app_db_platform.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'dart:math';

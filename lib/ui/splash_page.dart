@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_page.dart';
@@ -28,19 +28,7 @@ class SplashPage extends StatelessWidget {
           );
         }
 
-        // 🧭 Debug mode: langsung ke dashboard sesuai role yang dipilih
-        if (debugBypass) {
-          switch (debugBypassRole) {
-            case 'admin':
-              return const DashboardAdmin();
-            case 'guru':
-              return const DashboardGuru();
-            case 'siswa':
-              return const DashboardSiswa();
-            default:
-              return const HomePage();
-          }
-        }
+        
 
         // 🏠 Jika belum login → tampilkan HomePage (landing page)
         if (auth.current == null) {

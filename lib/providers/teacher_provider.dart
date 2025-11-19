@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../data/local/dao/teacher_dao.dart';
 import '../models/teacher.dart';
 
@@ -16,7 +16,6 @@ class TeacherProvider extends ChangeNotifier {
     try {
       // Main fix: gunakan getAllWithEmail agar field email selalu terisi
       _teachers = await _teacherDao.getAllWithEmail();
-      _teachers = _teachers ?? []; // Optional, extra proteksi
     } catch (e) {
       _teachers = [];
     }

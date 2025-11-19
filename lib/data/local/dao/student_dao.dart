@@ -1,5 +1,5 @@
-﻿import 'package:sqflite/sqflite.dart';
-import '../app_db.dart';
+import 'package:sqflite/sqflite.dart';
+import '../app_db_platform.dart';
 import '../../../models/student.dart';
 
 class StudentWithUser {

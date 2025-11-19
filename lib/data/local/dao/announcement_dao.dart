@@ -1,6 +1,5 @@
-﻿import 'package:sqflite/sqflite.dart';
 import '../../../models/announcement.dart';
-import '../app_db.dart';
+import '../app_db_platform.dart';
 
 class AnnouncementDao {
   Future<int> insert(Announcement a) async {
