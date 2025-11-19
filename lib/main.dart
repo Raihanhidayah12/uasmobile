@@ -1,20 +1,21 @@
-﻿import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'app.dart';
 import 'utils/notification_service.dart';
+import 'platform/db_init_io.dart' if (dart.library.html) 'platform/db_init_web.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // ✅ Setup database untuk desktop (Windows/Linux/MacOS)
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+  // ✅ Setup database khusus desktop (no-op di Web)
+  initDesktopDatabase();
+
+  if (!kIsWeb) {
+    await NotificationService.init();
   }
-
-  // ✅ Init notifikasi lokal
-  await NotificationService.init();
 
   // ✅ Jalankan aplikasi
   runApp(const MyApp());

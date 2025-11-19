@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../data/local/dao/teacher_dao.dart';
 import '../../data/local/dao/user_dao.dart';
 import '../../models/teacher.dart';
-import '../../models/user.dart' hide AppUser;
 
 class CrudGuruPage extends StatefulWidget {
   const CrudGuruPage({super.key});

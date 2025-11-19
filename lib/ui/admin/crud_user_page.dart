@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../data/local/dao/user_dao.dart';
 import '../../data/local/dao/student_dao.dart';
 import '../../data/local/dao/teacher_dao.dart';
-import '../../models/user.dart' hide AppUser;
 import '../../models/student.dart';
 import '../../models/teacher.dart';
 
@@ -269,7 +268,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         email: '',
                       ),
                     );
-                  } catch (e, st) {
+                  } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(

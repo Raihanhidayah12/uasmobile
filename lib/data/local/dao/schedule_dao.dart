@@ -1,6 +1,5 @@
-﻿import 'package:login_db_demo/models/schedule.dart';
-import 'package:sqflite/sqflite.dart';
-import '../app_db.dart';
+import 'package:login_db_demo/models/schedule.dart';
+import '../app_db_platform.dart';
 
 // Untuk join view di ListView (nama guru, dll)
 class ScheduleWithDetails {

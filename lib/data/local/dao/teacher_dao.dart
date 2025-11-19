@@ -1,6 +1,6 @@
-﻿import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart';
 import '../../../models/teacher.dart';
-import '../app_db.dart';
+import '../app_db_platform.dart';
 
 class TeacherDao {
   Future<int> insert(Teacher teacher) async {

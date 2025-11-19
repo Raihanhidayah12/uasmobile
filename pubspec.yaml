@@ -20,6 +20,7 @@ dependencies:
   # Database
   sqflite: ^2.3.3
   sqflite_common_ffi: ^2.3.2
+  sqflite_common_ffi_web: ^0.4.3
   path: ^1.9.0
   path_provider: ^2.1.2      # <= tambahkan ini, WAJIB untuk Android!
 
@@ -36,6 +37,8 @@ dependencies:
 
   # ✅ Notifikasi lokal
   flutter_local_notifications: ^17.2.4
+  firebase_core: ^3.5.0
+  firebase_auth: ^5.3.0
 
 dev_dependencies:
   flutter_test:

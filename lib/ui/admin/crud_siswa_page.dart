@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../data/local/dao/student_dao.dart';
 import '../../data/local/dao/user_dao.dart';
 import '../../models/student.dart';
-import '../../models/user.dart' hide AppUser;
 import '../../core/hashing.dart'; // hash password
 
 class CrudSiswaPage extends StatefulWidget {
@@ -266,9 +265,7 @@ class _CrudSiswaPageState extends State<CrudSiswaPage> {
   }
 
   Future<void> _deleteStudent(StudentWithUser s) async {
-    if (s.student.userId != null) {
-      await _userDao.delete(s.student.userId!);
-    }
+    await _userDao.delete(s.student.userId);
     await _studentDao.delete(s.student.id!);
     _loadData();
     ScaffoldMessenger.of(context).showSnackBar(
