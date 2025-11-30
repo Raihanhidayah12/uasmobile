@@ -1,6 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/announcement_provider.dart';
+import 'providers/schedule_provider.dart';
+import 'providers/teacher_provider.dart';
 import 'ui/splash_page.dart';
 
 class MyApp extends StatelessWidget {
@@ -11,6 +14,9 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
+        ChangeNotifierProvider(create: (_) => TeacherProvider()),
       ],
       child: MaterialApp(
         title: 'Sistem Informasi Akademik',

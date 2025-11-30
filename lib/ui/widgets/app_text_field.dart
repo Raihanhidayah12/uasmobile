@@ -1,5 +1,4 @@
-﻿// lib/ui/widgets/app_text_field.dart
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -11,6 +10,10 @@ class AppTextField extends StatelessWidget {
   final IconData? prefixIcon;
   final Widget? suffixIcon;
 
+  // TAMBAHAN
+  final TextStyle? labelStyle;
+  final TextStyle? textStyle;
+
   const AppTextField({
     super.key,
     required this.controller,
@@ -21,6 +24,8 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.prefixIcon,
     this.suffixIcon,
+    this.labelStyle,   // tambahan
+    this.textStyle,    // tambahan
   });
 
   @override
@@ -31,8 +36,10 @@ class AppTextField extends StatelessWidget {
       textInputAction: action ?? TextInputAction.next,
       keyboardType: keyboardType,
       validator: validator,
+      style: textStyle, // pakai textStyle
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: labelStyle, // pakai labelStyle
         border: const OutlineInputBorder(),
         prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
         suffixIcon: suffixIcon,

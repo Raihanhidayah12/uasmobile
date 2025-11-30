@@ -269,7 +269,6 @@ class _CrudSiswaPageState extends State<CrudSiswaPage> {
                               .toLowerCase()
                               .replaceAll(RegExp(r'\s+'), '');
                           final email = '$username@Brawijaya.com';
-                          const rawPass = '123456';
 
                           // Check if email already exists
                           final existsSnap = await _fs
@@ -372,22 +371,70 @@ class _CrudSiswaPageState extends State<CrudSiswaPage> {
   }
 
   Future<void> _deleteSiswa(Map<String, dynamic> s) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
-        content: Text('Yakin ingin menghapus siswa ${s['name']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: isDark ? Colors.blueGrey[900] : Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 29, horizontal: 28),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Konfirmasi Hapus",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 19,
+                    color: Colors.blueAccent,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text('Yakin ingin menghapus siswa ${s['name']}?'),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark
+                            ? Colors.cyan[200]
+                            : Colors.blueGrey,
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 11,
+                          horizontal: 20,
+                        ),
+                      ),
+                      icon: Icon(Icons.delete),
+                      label: Text(
+                        "Hapus",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
-          ),
-        ],
+        ),
       ),
     );
 

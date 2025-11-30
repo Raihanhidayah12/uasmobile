@@ -37,20 +37,39 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
     try {
       setState(() => _loading = true);
       final snapshot = await _firestore.collection('guru').get();
-      setState(() {
-        _guruList = snapshot.docs.map((doc) {
-          var data = doc.data();
-          data['id'] = doc.id;
-          return data;
-        }).toList();
-        _loading = false;
+      _guruList = snapshot.docs.map((doc) {
+        var data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+      _guruList.sort((a, b) {
+        final sa = (a['subject'] ?? '').toString();
+        final sb = (b['subject'] ?? '').toString();
+        final cmpS = sa.compareTo(sb);
+        if (cmpS != 0) return cmpS;
+        final na = (a['name'] ?? '').toString();
+        final nb = (b['name'] ?? '').toString();
+        return na.compareTo(nb);
       });
+      setState(() => _loading = false);
     } catch (e) {
       setState(() => _loading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error loading data: $e")));
+      ).showSnackBar(SnackBar(content: Text("❌ Gagal memuat data: $e")));
     }
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupBySubject(
+    List<Map<String, dynamic>> data,
+  ) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (var g in data) {
+      final key = g['subject'] ?? 'Tidak Diketahui';
+      grouped.putIfAbsent(key, () => []);
+      grouped[key]!.add(g);
+    }
+    return grouped;
   }
 
   Future<String> _generateNextNIP() async {
@@ -212,7 +231,7 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
                             if (existingUser.docs.isNotEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text("Email sudah terdaftar."),
+                                  content: Text("⚠️ Email sudah terdaftar."),
                                 ),
                               );
                               return;
@@ -244,13 +263,15 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  "Akun guru berhasil dibuat!\nEmail: $email\nPassword: $pass",
+                                  "✅ Guru & akun berhasil dibuat ($email / $pass)",
                                 ),
                               ),
                             );
                           } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Error: $e")),
+                              SnackBar(
+                                content: Text("❌ Gagal memperbarui data: $e"),
+                              ),
                             );
                           }
                         } else {
@@ -277,12 +298,14 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
                             _loadData();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text("Data guru diperbarui"),
+                                content: Text("✅ Data guru diperbarui"),
                               ),
                             );
                           } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Error: $e")),
+                              SnackBar(
+                                content: Text("❌ Gagal memperbarui data: $e"),
+                              ),
                             );
                           }
                         }
@@ -299,46 +322,92 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
   }
 
   Future<void> _deleteGuru(Map<String, dynamic> g) async {
-    final confirm =
-        await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Hapus Data Guru?"),
-            content: Text(
-              "Anda yakin ingin menghapus ${g['name']} dan akunnya?",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("Batal"),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  "Hapus",
-                  style: TextStyle(color: Colors.white),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: isDark ? Colors.blueGrey[900] : Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 29, horizontal: 28),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Konfirmasi Hapus",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 19,
+                    color: Colors.blueAccent,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                Text('Yakin ingin menghapus guru ${g['name']}?'),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark
+                            ? Colors.cyan[200]
+                            : Colors.blueGrey,
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 11,
+                          horizontal: 20,
+                        ),
+                      ),
+                      icon: Icon(Icons.delete),
+                      label: Text(
+                        "Hapus",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ) ??
-        false;
-    if (confirm) {
+        ),
+      ),
+    );
+
+    if (confirm == true) {
       try {
-        final uid = g['user_id'] as String?;
-        if (uid != null && uid.isNotEmpty) {
+        final uid = g['user_id'];
+        // Delete guru record
+        await _firestore.collection('guru').doc(g['id']).delete();
+        // Delete user account from Firestore (not Firebase Auth - needs admin)
+        if (uid != null) {
           await _firestore.collection('users').doc(uid).delete();
         }
-        await _firestore.collection('guru').doc(g['id']).delete();
         _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("🗑️ Guru & akun user dihapus")),
+          const SnackBar(
+            content: Text("🗑️ Guru & data akun berhasil dihapus"),
+          ),
         );
       } catch (e) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ).showSnackBar(SnackBar(content: Text('❌ Gagal hapus: $e')));
       }
     }
   }
@@ -438,6 +507,7 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final grouped = _groupBySubject(_guruList);
     return Scaffold(
       floatingActionButton: Container(
         decoration: BoxDecoration(
@@ -484,123 +554,145 @@ class _CrudGuruPageState extends State<CrudGuruPage> {
                         ),
                       ),
                     )
-                  : ListView.builder(
+                  : ListView(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 24,
                         horizontal: 16,
+                        vertical: 24,
                       ),
-                      itemCount: _guruList.length,
-                      itemBuilder: (context, i) {
-                        final g = _guruList[i];
-                        return Card(
-                          elevation: 4,
-                          color: isDark ? Colors.blueGrey[900] : Colors.white,
-                          shape: RoundedRectangleBorder(
+                      children: grouped.entries.map((entry) {
+                        final key = entry.key;
+                        final gurus = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.blueGrey[900] : Colors.white,
                             borderRadius: BorderRadius.circular(22),
-                          ),
-                          margin: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 7,
-                          ),
-                          shadowColor: Colors.blueAccent.withOpacity(0.1),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blueAccent.withOpacity(0.1),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 21,
-                                horizontal: 7,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blueAccent.withOpacity(0.1),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
                               ),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.green.withOpacity(0.53),
-                                        Colors.green.withOpacity(0.95),
-                                      ],
-                                      begin: Alignment.bottomLeft,
-                                      end: Alignment.topRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: const Icon(
-                                    Icons.person,
-                                    color: Colors.white,
-                                    size: 31,
-                                  ),
+                            ],
+                          ),
+                          child: ExpansionTile(
+                            title: Text(
+                              "$key (${gurus.length})",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                                color: isDark
+                                    ? Colors.cyan[100]
+                                    : Colors.indigo,
+                              ),
+                            ),
+                            leading: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.green.withOpacity(0.53),
+                                    Colors.green.withOpacity(0.95),
+                                  ],
+                                  begin: Alignment.bottomLeft,
+                                  end: Alignment.topRight,
                                 ),
-                                title: Text(
-                                  "${g['name']}",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 19,
-                                    color: isDark
-                                        ? Colors.cyan[100]
-                                        : Colors.green,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      "NIP: ${g['nip']} • Mapel: ${g['subject']}",
-                                      style: TextStyle(
-                                        fontSize: 13.3,
-                                        color: isDark
-                                            ? Colors.blueGrey[100]
-                                            : Colors.grey[700],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: const Icon(
+                                Icons.people_alt_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.expand_more,
+                              color: Colors.blueAccent,
+                            ),
+                            childrenPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            children: gurus.map((g) {
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.blueGrey[800]
+                                      : Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.blueAccent.withOpacity(
+                                        0.05,
                                       ),
-                                    ),
-                                    Text(
-                                      "${g['email']}",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark
-                                            ? Colors.white38
-                                            : Colors.blueGrey[400],
-                                      ),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.orange,
-                                        size: 24,
+                                child: ListTile(
+                                  leading: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.blue.withOpacity(0.53),
+                                          Colors.blue.withOpacity(0.95),
+                                        ],
+                                        begin: Alignment.bottomLeft,
+                                        end: Alignment.topRight,
                                       ),
-                                      tooltip: "Edit data guru",
-                                      onPressed: () => _showForm(g),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                        size: 24,
+                                    padding: const EdgeInsets.all(8),
+                                    child: const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    "${g['name']} (${g['nip']})",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    "${g['email']}",
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.blueGrey[200]
+                                          : Colors.grey[700],
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          color: Colors.orange,
+                                        ),
+                                        onPressed: () => _showForm(g),
                                       ),
-                                      tooltip: "Hapus",
-                                      onPressed: () => _deleteGuru(g),
-                                    ),
-                                  ],
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () => _deleteGuru(g),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }).toList(),
                           ),
                         );
-                      },
+                      }).toList(),
                     ),
             ),
           ],
