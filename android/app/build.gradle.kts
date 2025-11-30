@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.project_akhir"
+    namespace = "com.company.uasmobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.project_akhir"
+        applicationId = "com.company.uasmobile"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

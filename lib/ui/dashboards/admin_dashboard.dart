@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+// Removed local DAO imports — dashboard reads counts from Firestore now
 import '../../providers/auth_provider.dart';
 import '../home_page.dart';
 
@@ -10,8 +12,99 @@ import '../admin/crud_jadwal_page.dart';
 import '../admin/crud_pengumuman_page.dart';
 import '../admin/crud_user_page.dart';
 
-class DashboardAdmin extends StatelessWidget {
+class DashboardAdmin extends StatefulWidget {
   const DashboardAdmin({super.key});
+
+  @override
+  State<DashboardAdmin> createState() => _DashboardAdminState();
+}
+
+class _DashboardAdminState extends State<DashboardAdmin> {
+  final FirebaseFirestore _fs = FirebaseFirestore.instance;
+
+  int _studentCount = 0;
+  int _teacherCount = 0;
+  int _userCount = 0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    setState(() => _loading = true);
+    try {
+      // Read counts from Firestore collections
+      final siswaSnap = await _fs.collection('siswa').get();
+      final guruSnap = await _fs.collection('guru').get();
+      final usersSnap = await _fs.collection('users').get();
+      setState(() {
+        _studentCount = siswaSnap.docs.length;
+        _teacherCount = guruSnap.docs.length;
+        _userCount = usersSnap.docs.length;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Widget _buildStatisticsCard({
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String count,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Card(
+      color: isDark ? Colors.blueGrey[900] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Row(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color.withOpacity(0.6), color.withOpacity(0.95)],
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isDark ? Colors.cyan[100] : Colors.black87,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  count,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +287,55 @@ class DashboardAdmin extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    "Statistik",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatisticsCard(
+                                color: Colors.blue,
+                                icon: Icons.school,
+                                title: "Total Siswa",
+                                count: _studentCount.toString(),
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildStatisticsCard(
+                                color: Colors.green,
+                                icon: Icons.person,
+                                title: "Total Guru",
+                                count: _teacherCount.toString(),
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildStatisticsCard(
+                                color: Colors.purple,
+                                icon: Icons.account_circle,
+                                title: "Total Akun",
+                                count: _userCount.toString(),
+                              ),
+                            ),
+                          ],
+                        ),
+                  const SizedBox(height: 32),
+                  Text(
+                    "Menu",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _buildMenuCard(
                     color: Colors.indigo,
                     icon: Icons.school,
