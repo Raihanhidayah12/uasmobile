@@ -1,4 +1,4 @@
-import 'package:login_db_demo/models/schedule.dart';
+import 'package:uasmobile/models/schedule.dart';
 import '../app_db_platform.dart';
 
 // Untuk join view di ListView (nama guru, dll)

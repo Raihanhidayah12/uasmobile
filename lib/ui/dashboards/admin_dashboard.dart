@@ -22,7 +22,11 @@ class DashboardAdmin extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.indigo, Colors.blueAccent, Colors.cyanAccent.shade100],
+            colors: [
+              Colors.indigo,
+              Colors.blueAccent,
+              Colors.cyanAccent.shade100,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -33,7 +37,9 @@ class DashboardAdmin extends StatelessWidget {
               blurRadius: 34,
             ),
           ],
-          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(35)),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(35),
+          ),
         ),
         child: Row(
           children: [
@@ -52,39 +58,31 @@ class DashboardAdmin extends StatelessWidget {
               child: CircleAvatar(
                 radius: 37,
                 backgroundColor: Colors.white,
-                backgroundImage: const AssetImage('assets/avatar_admin.png'),
-                onBackgroundImageError: (_, __) {},
-                child: ClipOval(
-                  child: Builder(
-                    builder: (_) =>
-                        Image.asset(
-                          'assets/avatar_admin.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Icon(Icons.person, color: Colors.blue[700], size: 46),
-                        ),
-                  ),
-                ),
+                child: Icon(Icons.person, color: Colors.blue[700], size: 46),
               ),
             ),
             const SizedBox(width: 22),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Admin Dashboard",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: .7,
-                    )),
+                Text(
+                  "Admin Dashboard",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .7,
+                  ),
+                ),
                 const SizedBox(height: 5),
-                Text("Welcome, Admin!",
-                    style: TextStyle(
-                      color: Colors.blue[50],
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                    )),
+                Text(
+                  "Welcome, Admin!",
+                  style: TextStyle(
+                    color: Colors.blue[50],
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
               ],
             ),
             const Spacer(),
@@ -106,9 +104,14 @@ class DashboardAdmin extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.12),
-                      borderRadius: BorderRadius.circular(50)),
-                  child: const Icon(Icons.logout, color: Colors.white, size: 29),
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: Colors.white,
+                    size: 29,
+                  ),
                 ),
               ),
             ),
@@ -131,7 +134,9 @@ class DashboardAdmin extends StatelessWidget {
         child: Card(
           color: isDark ? Colors.blueGrey[900] : Colors.white,
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
           margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 7),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 21, horizontal: 7),
@@ -148,16 +153,26 @@ class DashboardAdmin extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 child: Icon(icon, color: Colors.white, size: 31),
               ),
-              title: Text(title,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 19,
-                      color: isDark ? Colors.cyan[100] : color)),
-              subtitle: Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 13.3,
-                      color: isDark ? Colors.blueGrey[100] : Colors.grey[700])),
-              trailing: const Icon(Icons.chevron_right, size: 31, color: Colors.blueAccent),
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 19,
+                  color: isDark ? Colors.cyan[100] : color,
+                ),
+              ),
+              subtitle: Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13.3,
+                  color: isDark ? Colors.blueGrey[100] : Colors.grey[700],
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                size: 31,
+                color: Colors.blueAccent,
+              ),
             ),
           ),
         ),
@@ -165,7 +180,9 @@ class DashboardAdmin extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF12121D) : const Color(0xFFF3F9FE),
+      backgroundColor: isDark
+          ? const Color(0xFF12121D)
+          : const Color(0xFFF3F9FE),
       body: SafeArea(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -201,7 +218,8 @@ class DashboardAdmin extends StatelessWidget {
                     color: Colors.purple,
                     icon: Icons.manage_accounts,
                     title: "Kelola Akun",
-                    subtitle: "Kelola akun siswa dan guru (edit role & password)",
+                    subtitle:
+                        "Kelola akun siswa dan guru (edit role & password)",
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const CrudUserPage()),
@@ -221,10 +239,13 @@ class DashboardAdmin extends StatelessWidget {
                     color: Colors.redAccent,
                     icon: Icons.campaign_rounded,
                     title: "Kelola Pengumuman",
-                    subtitle: "Kelola pengumuman sekolah (Info penting dan event!)",
+                    subtitle:
+                        "Kelola pengumuman sekolah (Info penting dan event!)",
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const CrudPengumumanPage()),
+                      MaterialPageRoute(
+                        builder: (_) => const CrudPengumumanPage(),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -242,7 +263,7 @@ class DashboardAdmin extends StatelessWidget {
                   const SizedBox(height: 18),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

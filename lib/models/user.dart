@@ -1,11 +1,11 @@
 ﻿class AppUser {
-  final int? id; // nullable (auto increment)
+  final int? id; // nullable, auto increment di SQLite
   final String email;
-  final String passwordHash; // hash hasil enkripsi
-  final String salt;         // untuk hashing
+  final String passwordHash; // hasil hash password+salt
+  final String salt;         // salt untuk hashing
   final String role;
 
-  String? password; // ✅ ubah ke nullable
+  String? password; // nullable: hanya untuk input, tidak disimpan di DB
 
   AppUser({
     this.id,
@@ -13,7 +13,7 @@
     required this.passwordHash,
     required this.salt,
     required this.role,
-    this.password, // ✅ opsional
+    this.password,
   });
 
   factory AppUser.fromMap(Map<String, Object?> map) => AppUser(
@@ -22,13 +22,34 @@
         passwordHash: map['password_hash'] as String,
         salt: map['salt'] as String,
         role: map['role'] as String,
+        // Tidak perlu load password, cuma untuk field opsional ketika input saja
       );
 
   Map<String, Object?> toMap() => {
-        'id': id,
+        if (id != null) 'id': id,
         'email': email,
         'password_hash': passwordHash,
         'salt': salt,
         'role': role,
+        // Tidak perlu simpan password plain di DB
       };
+
+  // Optional: Custom copyWith biar bisa update properti dengan mudah
+  AppUser copyWith({
+    int? id,
+    String? email,
+    String? passwordHash,
+    String? salt,
+    String? role,
+    String? password,
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      passwordHash: passwordHash ?? this.passwordHash,
+      salt: salt ?? this.salt,
+      role: role ?? this.role,
+      password: password ?? this.password,
+    );
+  }
 }

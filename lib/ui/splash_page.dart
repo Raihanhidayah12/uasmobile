@@ -14,10 +14,7 @@ class SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// ✅ Mode bypass untuk development/testing cepat
-    const bool debugBypass = false; // ubah ke true jika ingin bypass login
-    const String debugBypassRole = 'admin'; 
-    // 'admin' | 'guru' | 'siswa' (role yang mau diuji bypass)
+    /// Development helpers removed (unused)
 
     return Consumer<AuthProvider>(
       builder: (_, auth, __) {
@@ -27,8 +24,6 @@ class SplashPage extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        
 
         // 🏠 Jika belum login → tampilkan HomePage (landing page)
         if (auth.current == null) {

@@ -1,10 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../data/local/dao/user_dao.dart';
-import '../../data/local/dao/student_dao.dart';
-import '../../data/local/dao/teacher_dao.dart';
-import '../../models/student.dart';
-import '../../models/teacher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CrudUserPage extends StatefulWidget {
   const CrudUserPage({super.key});
@@ -13,11 +10,9 @@ class CrudUserPage extends StatefulWidget {
 }
 
 class _CrudUserPageState extends State<CrudUserPage> {
-  final _userDao = UserDao();
-  final _studentDao = StudentDao();
-  final _teacherDao = TeacherDao();
+  final _fs = FirebaseFirestore.instance;
 
-  List<AppUser> _users = [];
+  List<Map<String, dynamic>> _users = [];
   bool _loading = true;
   static const String domain = "@Brawijaya.com";
 
@@ -29,6 +24,102 @@ class _CrudUserPageState extends State<CrudUserPage> {
 
   Color getTextColor(Color bg) =>
       bg.computeLuminance() < 0.5 ? Colors.white : Colors.black;
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.indigo,
+            Colors.blueAccent,
+            Colors.cyanAccent.shade100,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(.19),
+            offset: const Offset(0, 11),
+            blurRadius: 34,
+          ),
+        ],
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white, width: 2),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 37,
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.manage_accounts,
+                color: Colors.blue[700],
+                size: 46,
+              ),
+            ),
+          ),
+          const SizedBox(width: 22),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Kelola Akun",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 27,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .7,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Manage user accounts efficiently",
+                style: TextStyle(
+                  color: Colors.blue[50],
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(50),
+              splashColor: Colors.white30,
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 29,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void showAccountSuccessNotif(String role, String email, String password) {
     showDialog(
@@ -148,7 +239,15 @@ class _CrudUserPageState extends State<CrudUserPage> {
 
   Future<void> _loadUsers() async {
     setState(() => _loading = true);
-    final users = await _userDao.getAll();
+    final snap = await _fs
+        .collection('users')
+        .orderBy('created_at', descending: false)
+        .get();
+    final users = snap.docs.map((d) {
+      final m = d.data();
+      m['uid'] = d.id;
+      return m;
+    }).toList();
     setState(() {
       _users = users;
       _loading = false;
@@ -216,8 +315,12 @@ class _CrudUserPageState extends State<CrudUserPage> {
                   '',
                 );
                 final email = "$userName$domain";
-                final existedUser = await _userDao.findByEmail(email);
-                if (existedUser != null) {
+                final existedQuery = await _fs
+                    .collection('users')
+                    .where('email', isEqualTo: email)
+                    .limit(1)
+                    .get();
+                if (existedQuery.docs.isNotEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -227,63 +330,58 @@ class _CrudUserPageState extends State<CrudUserPage> {
                   );
                   return;
                 }
-                String numberId;
-                if (role == "siswa") {
-                  numberId = await _studentDao.generateNextNis();
-                } else {
-                  numberId = await _teacherDao.generateNextNip();
-                }
-                final password = numberId;
-                final salt = _userDao.generateSalt();
-                final hash = _userDao.hashPassword(password, salt);
-                final user = AppUser(
-                  id: null,
-                  email: email,
-                  passwordHash: hash,
-                  salt: salt,
-                  role: role,
+                // generate numeric id (nis/nip) by checking latest document
+                String numberId = await _generateNextNumber(
+                  role == 'siswa' ? 'siswa' : 'guru',
                 );
-                final userId = await _userDao.insert(user);
+                final password = numberId;
 
-                if (role == "siswa") {
-                  await _studentDao.insert(
-                    Student(
-                      id: null,
-                      userId: userId,
-                      nis: numberId,
-                      name: nameCtrl.text,
-                      kelas: "-",
-                      jurusan: "-",
-                    ),
-                  );
-                } else {
-                  try {
-                    await _teacherDao.insert(
-                      Teacher(
-                        id: null,
-                        userId: userId,
-                        nip: numberId,
-                        name: nameCtrl.text,
-                        subject: "-",
-                        email: '',
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '❌ Gagal tambah guru di tabel teachers: $e',
-                        ),
-                      ),
-                    );
-                    await _userDao.delete(userId);
-                    return;
+                try {
+                  // create Firebase Auth user with generated password
+                  final cred = await FirebaseAuth.instance
+                      .createUserWithEmailAndPassword(
+                        email: email,
+                        password: password,
+                      );
+                  final uid = cred.user!.uid;
+
+                  // create user profile in Firestore
+                  await _fs.collection('users').doc(uid).set({
+                    'email': email,
+                    'role': role,
+                    'username': userName,
+                    'created_at': FieldValue.serverTimestamp(),
+                  });
+
+                  if (role == 'siswa') {
+                    await _fs.collection('siswa').add({
+                      'user_id': uid,
+                      'nis': numberId,
+                      'name': nameCtrl.text,
+                      'kelas': '-',
+                      'jurusan': '-',
+                      'created_at': FieldValue.serverTimestamp(),
+                    });
+                  } else {
+                    await _fs.collection('guru').add({
+                      'user_id': uid,
+                      'nip': numberId,
+                      'name': nameCtrl.text,
+                      'subject': '-',
+                      'email': email,
+                      'created_at': FieldValue.serverTimestamp(),
+                    });
                   }
+
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  _loadUsers();
+                  showAccountSuccessNotif(role, email, password);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('❌ Gagal menambah user: $e')),
+                  );
                 }
-                if (!mounted) return;
-                Navigator.pop(context);
-                _loadUsers();
-                showAccountSuccessNotif(role, email, password);
               },
             ),
           ],
@@ -292,113 +390,43 @@ class _CrudUserPageState extends State<CrudUserPage> {
     );
   }
 
-  Future<void> _editUserDialog(AppUser user) async {
-    if (user.role == "siswa_pending") return;
-    final nameCtrl = TextEditingController(text: user.email.split('@').first);
-    String role = user.role;
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Edit Akun"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Username",
-                prefixIcon: Icon(Icons.person),
-                helperText: "Email akan otomatis @Brawijaya.com",
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: role,
-              decoration: const InputDecoration(
-                labelText: "Role",
-                prefixIcon: Icon(Icons.person),
-              ),
-              items: const [
-                DropdownMenuItem(value: "siswa", child: Text("Siswa")),
-                DropdownMenuItem(value: "guru", child: Text("Guru")),
-              ],
-              onChanged: (val) => role = val ?? user.role,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.save),
-            label: const Text("Simpan"),
-            onPressed: () async {
-              if (nameCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("⚠️ Username wajib diisi")),
-                );
-                return;
-              }
-              final email = "${nameCtrl.text.trim()}$domain";
-              final updatedUser = AppUser(
-                id: user.id,
-                email: email,
-                passwordHash: user.passwordHash,
-                salt: user.salt,
-                role: role,
-              );
-              await updateRoleAndSync(
-                updatedUser.id!,
-                role,
-                nameCtrl.text.trim(),
-                kelas: "XI",
-                jurusan: "RPL",
-                subject: "Matematika",
-              );
-              if (!mounted) return;
-              Navigator.pop(context);
-              _loadUsers();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("✅ Akun berhasil diperbarui")),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteUser(AppUser user) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Konfirmasi Hapus"),
-        content: Text("Yakin ingin menghapus user ${user.email}?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Hapus"),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await _userDao.delete(user.id!);
-      _loadUsers();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("🗑️ User ${user.email} berhasil dihapus")),
-      );
+  Future<String> _generateNextNumber(String collection) async {
+    try {
+      if (collection == 'siswa') {
+        final snap = await _fs
+            .collection('siswa')
+            .orderBy('nis', descending: true)
+            .limit(1)
+            .get();
+        if (snap.docs.isEmpty)
+          return DateTime.now().millisecondsSinceEpoch.toString().substring(4);
+        final last = snap.docs.first.data()['nis']?.toString() ?? '';
+        final lastNum =
+            int.tryParse(last) ??
+            DateTime.now().millisecondsSinceEpoch % 100000;
+        return (lastNum + 1).toString();
+      } else {
+        final snap = await _fs
+            .collection('guru')
+            .orderBy('nip', descending: true)
+            .limit(1)
+            .get();
+        if (snap.docs.isEmpty)
+          return DateTime.now().millisecondsSinceEpoch.toString().substring(4);
+        final last = snap.docs.first.data()['nip']?.toString() ?? '';
+        final lastNum =
+            int.tryParse(last) ??
+            DateTime.now().millisecondsSinceEpoch % 100000;
+        return (lastNum + 1).toString();
+      }
+    } catch (_) {
+      return DateTime.now().millisecondsSinceEpoch.toString().substring(4);
     }
   }
+
+  // Role-change helper removed (inline dialogs used in UI)
+
+  // Delete helper removed (inline delete used in UI)
 
   Future<void> updateRoleAndSync(
     int userId,
@@ -408,43 +436,14 @@ class _CrudUserPageState extends State<CrudUserPage> {
     required String jurusan,
     required String subject,
   }) async {
-    await _userDao.updateRole(userId, newRole);
-    if (newRole == "guru") {
-      await _studentDao.deleteByUserId(userId);
-      final exists = await _teacherDao.findByUserId(userId);
-      if (exists == null) {
-        final nipBaru = await _teacherDao.generateNextNip();
-        await _teacherDao.insert(
-          Teacher(
-            id: null,
-            userId: userId,
-            nip: nipBaru,
-            name: name,
-            subject: subject,
-            email: '',
-          ),
-        );
-      }
-    } else if (newRole == "siswa") {
-      await _teacherDao.deleteByUserId(userId);
-      final exists = await _studentDao.findByUserId(userId);
-      if (exists == null) {
-        final nisBaru = await _studentDao.generateNextNis();
-        await _studentDao.insert(
-          Student(
-            id: null,
-            userId: userId,
-            nis: nisBaru,
-            name: name,
-            kelas: kelas,
-            jurusan: jurusan,
-          ),
-        );
-      }
-    }
+    // Deprecated — role sync now handled via Firestore flows
   }
 
-  Widget _buildUserList(String title, List<AppUser> users, String role) {
+  Widget _buildUserList(
+    String title,
+    List<Map<String, dynamic>> users,
+    String role,
+  ) {
     return ExpansionTile(
       initiallyExpanded: true,
       leading: const Icon(Icons.people_alt_rounded, color: Colors.blueAccent),
@@ -453,10 +452,11 @@ class _CrudUserPageState extends State<CrudUserPage> {
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18.5),
       ),
       children: users.map((u) {
-        final isPending = u.role == "siswa_pending";
-        final userColor = u.role == "guru"
+        final roleField = u['role'] as String? ?? 'siswa';
+        final isPending = roleField == "siswa_pending";
+        final userColor = roleField == "guru"
             ? const Color(0xFFD7C8EF).withOpacity(0.92)
-            : u.role == "siswa"
+            : roleField == "siswa"
             ? const Color(0xFFD9F3FF).withOpacity(0.92)
             : const Color(0xFFFFEDD6).withOpacity(0.93);
         final textColor = getTextColor(userColor);
@@ -483,72 +483,41 @@ class _CrudUserPageState extends State<CrudUserPage> {
                   horizontal: 17,
                   vertical: 15,
                 ),
-                leading: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: isPending
-                          ? Colors.orange[200]
-                          : u.role == "guru"
-                          ? Colors.deepPurple[200]
-                          : Colors.blue[200],
-                      child: Icon(
-                        isPending
-                            ? Icons.hourglass_bottom_rounded
-                            : u.role == "guru"
-                            ? Icons.school
-                            : Icons.person,
-                        color: isPending
-                            ? Colors.deepOrange
-                            : u.role == "guru"
-                            ? Colors.deepPurple
-                            : Colors.blue,
-                        size: 28,
-                      ),
+                leading: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        (isPending
+                                ? Colors.orange
+                                : roleField == "guru"
+                                ? Colors.deepPurple
+                                : Colors.blue)
+                            .withOpacity(0.53),
+                        (isPending
+                                ? Colors.orange
+                                : roleField == "guru"
+                                ? Colors.deepPurple
+                                : Colors.blue)
+                            .withOpacity(0.95),
+                      ],
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
                     ),
-                    if (u.role == "guru")
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurple,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Text(
-                          "GURU",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    if (u.role == "siswa")
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Text(
-                          "SISWA",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    isPending
+                        ? Icons.hourglass_bottom_rounded
+                        : roleField == "guru"
+                        ? Icons.school
+                        : Icons.person,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 title: Text(
-                  u.email,
+                  u['email'] ?? '',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
@@ -558,7 +527,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 3.5),
                   child: Text(
-                    isPending ? "MENUNGGU VERIFIKASI" : "Role: ${u.role}",
+                    isPending ? "MENUNGGU VERIFIKASI" : "Role: ${roleField}",
                     style: TextStyle(
                       fontSize: 13.5,
                       color: isPending
@@ -591,40 +560,59 @@ class _CrudUserPageState extends State<CrudUserPage> {
                               ),
                             ),
                             onPressed: () async {
-                              await _userDao.updateRole(u.id!, "siswa");
-                              await _studentDao.insert(
-                                Student(
-                                  id: null,
-                                  userId: u.id!,
-                                  nis: await _studentDao.generateNextNis(),
-                                  name: u.email.split('@').first,
-                                  kelas: "-",
-                                  jurusan: "-",
-                                ),
-                              );
-                              _loadUsers();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.verified,
-                                        color: Colors.greenAccent,
-                                        size: 21,
-                                      ),
-                                      SizedBox(width: 7),
-                                      Text(
-                                        "Aktivasi berhasil: user ini jadi Siswa",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
+                              try {
+                                // find user doc by email
+                                final q = await _fs
+                                    .collection('users')
+                                    .where('email', isEqualTo: u['email'])
+                                    .limit(1)
+                                    .get();
+                                if (q.docs.isEmpty) throw 'User doc not found';
+                                final uid = q.docs.first.id;
+                                await _fs.collection('users').doc(uid).update({
+                                  'role': 'siswa',
+                                });
+                                // create siswa record
+                                final nis = await _generateNextNumber('siswa');
+                                await _fs.collection('siswa').add({
+                                  'user_id': uid,
+                                  'nis': nis,
+                                  'name': (u['email'] ?? '')
+                                      .toString()
+                                      .split('@')
+                                      .first,
+                                  'kelas': '-',
+                                  'jurusan': '-',
+                                  'created_at': FieldValue.serverTimestamp(),
+                                });
+                                _loadUsers();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.verified,
+                                          color: Colors.greenAccent,
+                                          size: 21,
                                         ),
-                                      ),
-                                    ],
+                                        SizedBox(width: 7),
+                                        Text(
+                                          "Aktivasi berhasil: user ini jadi Siswa",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.black87,
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  backgroundColor: Colors.black87,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Gagal aktivasi: $e')),
+                                );
+                              }
                             },
                           ),
                           const SizedBox(width: 5),
@@ -646,30 +634,47 @@ class _CrudUserPageState extends State<CrudUserPage> {
                               ),
                             ),
                             onPressed: () async {
-                              await _userDao.delete(u.id!);
-                              _loadUsers();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.delete_forever,
-                                        color: Colors.redAccent,
-                                        size: 21,
-                                      ),
-                                      SizedBox(width: 7),
-                                      Text(
-                                        "Akun pending telah DIHAPUS",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
+                              try {
+                                final q = await _fs
+                                    .collection('users')
+                                    .where('email', isEqualTo: u['email'])
+                                    .limit(1)
+                                    .get();
+                                if (q.docs.isNotEmpty) {
+                                  final uid = q.docs.first.id;
+                                  await _fs
+                                      .collection('users')
+                                      .doc(uid)
+                                      .delete();
+                                }
+                                _loadUsers();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delete_forever,
+                                          color: Colors.redAccent,
+                                          size: 21,
                                         ),
-                                      ),
-                                    ],
+                                        SizedBox(width: 7),
+                                        Text(
+                                          "Akun pending telah DIHAPUS",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.black87,
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  backgroundColor: Colors.black87,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Gagal hapus: $e')),
+                                );
+                              }
                             },
                           ),
                         ],
@@ -683,8 +688,151 @@ class _CrudUserPageState extends State<CrudUserPage> {
                               color: Colors.orange,
                               size: 22,
                             ),
-                            tooltip: "Edit User",
-                            onPressed: () => _editUserDialog(u),
+                            tooltip: "Edit Role",
+                            onPressed: () async {
+                              // open simple role-change dialog (email/username not editable)
+                              final q = await _fs
+                                  .collection('users')
+                                  .where('email', isEqualTo: u['email'])
+                                  .limit(1)
+                                  .get();
+                              if (q.docs.isEmpty) return;
+                              final doc = q.docs.first;
+                              String newRole = (u['role'] ?? 'siswa') as String;
+                              await showDialog(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('Ubah Role'),
+                                  content: DropdownButtonFormField<String>(
+                                    value: newRole,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'siswa',
+                                        child: Text('Siswa'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'guru',
+                                        child: Text('Guru'),
+                                      ),
+                                    ],
+                                    onChanged: (v) => newRole = v ?? newRole,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Batal'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          await _fs
+                                              .collection('users')
+                                              .doc(doc.id)
+                                              .update({'role': newRole});
+                                          if (newRole == 'siswa') {
+                                            // create siswa if not exists
+                                            final exists = await _fs
+                                                .collection('siswa')
+                                                .where(
+                                                  'user_id',
+                                                  isEqualTo: doc.id,
+                                                )
+                                                .limit(1)
+                                                .get();
+                                            if (exists.docs.isEmpty) {
+                                              final nis =
+                                                  await _generateNextNumber(
+                                                    'siswa',
+                                                  );
+                                              await _fs.collection('siswa').add({
+                                                'user_id': doc.id,
+                                                'nis': nis,
+                                                'name': (u['email'] ?? '')
+                                                    .toString()
+                                                    .split('@')
+                                                    .first,
+                                                'kelas': '-',
+                                                'jurusan': '-',
+                                                'created_at':
+                                                    FieldValue.serverTimestamp(),
+                                              });
+                                            }
+                                            // remove guru records
+                                            final g = await _fs
+                                                .collection('guru')
+                                                .where(
+                                                  'user_id',
+                                                  isEqualTo: doc.id,
+                                                )
+                                                .get();
+                                            for (final d in g.docs)
+                                              await d.reference.delete();
+                                          } else if (newRole == 'guru') {
+                                            final exists = await _fs
+                                                .collection('guru')
+                                                .where(
+                                                  'user_id',
+                                                  isEqualTo: doc.id,
+                                                )
+                                                .limit(1)
+                                                .get();
+                                            if (exists.docs.isEmpty) {
+                                              final nip =
+                                                  await _generateNextNumber(
+                                                    'guru',
+                                                  );
+                                              await _fs.collection('guru').add({
+                                                'user_id': doc.id,
+                                                'nip': nip,
+                                                'name': (u['email'] ?? '')
+                                                    .toString()
+                                                    .split('@')
+                                                    .first,
+                                                'subject': '-',
+                                                'email': u['email'] ?? '',
+                                                'created_at':
+                                                    FieldValue.serverTimestamp(),
+                                              });
+                                            }
+                                            final s = await _fs
+                                                .collection('siswa')
+                                                .where(
+                                                  'user_id',
+                                                  isEqualTo: doc.id,
+                                                )
+                                                .get();
+                                            for (final d in s.docs)
+                                              await d.reference.delete();
+                                          }
+                                          Navigator.pop(context);
+                                          _loadUsers();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '✅ Role berhasil diperbarui',
+                                              ),
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Gagal update role: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Simpan'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                           IconButton(
                             icon: const Icon(
@@ -693,7 +841,62 @@ class _CrudUserPageState extends State<CrudUserPage> {
                               size: 22,
                             ),
                             tooltip: "Hapus User",
-                            onPressed: () => _deleteUser(u),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('Konfirmasi'),
+                                  content: Text(
+                                    'Hapus user ${u['email']} dari Firestore? (catatan: akun Firebase Auth mungkin masih ada)',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Batal'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Hapus'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                try {
+                                  final q = await _fs
+                                      .collection('users')
+                                      .where('email', isEqualTo: u['email'])
+                                      .limit(1)
+                                      .get();
+                                  if (q.docs.isNotEmpty) {
+                                    final uid = q.docs.first.id;
+                                    await _fs
+                                        .collection('users')
+                                        .doc(uid)
+                                        .delete();
+                                    final s = await _fs
+                                        .collection('siswa')
+                                        .where('user_id', isEqualTo: uid)
+                                        .get();
+                                    for (final d in s.docs)
+                                      await d.reference.delete();
+                                    final g = await _fs
+                                        .collection('guru')
+                                        .where('user_id', isEqualTo: uid)
+                                        .get();
+                                    for (final d in g.docs)
+                                      await d.reference.delete();
+                                  }
+                                  _loadUsers();
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Gagal hapus: $e')),
+                                  );
+                                }
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -708,43 +911,62 @@ class _CrudUserPageState extends State<CrudUserPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final siswaUsers = _users
-        .where((u) => u.role == "siswa" || u.role == "siswa_pending")
-        .toList();
-    final guruUsers = _users.where((u) => u.role == "guru").toList();
+    final siswaUsers = _users.where((u) {
+      final r = (u['role'] ?? '') as String;
+      return r == 'siswa' || r == 'siswa_pending';
+    }).toList();
+    final guruUsers = _users.where((u) => (u['role'] ?? '') == 'guru').toList();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Kelola Akun",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 21,
-            letterSpacing: 0.5,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.indigo, Colors.blueAccent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueAccent.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        elevation: 2,
-        backgroundColor: Colors.blueAccent,
-        leading: const BackButton(color: Colors.white),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blueAccent,
-        onPressed: _addUserDialog,
-        child: const Icon(Icons.person_add, size: 27),
-        shape: const StadiumBorder(),
+        child: FloatingActionButton(
+          onPressed: _addUserDialog,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.person_add, color: Colors.white),
+        ),
       ),
       backgroundColor: isDark
           ? const Color(0xFF12121D)
-          : const Color(0xFFF3F9FE), // <- ini!
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _users.isEmpty
-          ? const Center(child: Text("Belum ada user terdaftar"))
-          : ListView(
-              children: [
-                _buildUserList("Akun Siswa", siswaUsers, "siswa"),
-                _buildUserList("Akun Guru", guruUsers, "guru"),
-              ],
+          : const Color(0xFFF3F9FE),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _users.isEmpty
+                  ? const Center(child: Text("Belum ada user terdaftar"))
+                  : ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 24,
+                      ),
+                      children: [
+                        _buildUserList("Akun Siswa", siswaUsers, "siswa"),
+                        _buildUserList("Akun Guru", guruUsers, "guru"),
+                      ],
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }

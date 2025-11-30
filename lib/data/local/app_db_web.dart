@@ -1,5 +1,5 @@
 import 'package:sqflite/sqflite.dart';
-import 'package:login_db_demo/core/hashing.dart';
+import 'package:uasmobile/core/hashing.dart';
 
 class AppDb {
   static final AppDb _i = AppDb._();

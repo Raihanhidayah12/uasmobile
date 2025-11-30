@@ -1,19 +1,23 @@
 ﻿import 'package:flutter/foundation.dart';
-import '../data/local/dao/schedule_dao.dart';
-import '../models/schedule.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ScheduleProvider extends ChangeNotifier {
-  final ScheduleDao _dao = ScheduleDao();
-  List<Schedule> _items = [];
+  final _fs = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> _items = [];
   bool _loading = false;
 
-  List<Schedule> get items => _items;
+  List<Map<String, dynamic>> get items => _items;
   bool get loading => _loading;
 
   Future<void> loadAll() async {
     _loading = true;
     notifyListeners();
-    _items = await _dao.getAll();
+    final snap = await _fs.collection('jadwal').orderBy('hari').get();
+    _items = snap.docs.map((d) {
+      final m = d.data();
+      m['id'] = d.id;
+      return m;
+    }).toList();
     _loading = false;
     notifyListeners();
   }
@@ -21,23 +25,38 @@ class ScheduleProvider extends ChangeNotifier {
   Future<void> loadByKelasJurusan(String kelas, String jurusan) async {
     _loading = true;
     notifyListeners();
-    _items = await _dao.getByKelasJurusan(kelas, jurusan);
+    final snap = await _fs
+        .collection('jadwal')
+        .where('kelas', isEqualTo: kelas)
+        .where('jurusan', isEqualTo: jurusan)
+        .get();
+    _items = snap.docs.map((d) {
+      final m = d.data();
+      m['id'] = d.id;
+      return m;
+    }).toList();
     _loading = false;
     notifyListeners();
   }
 
-  Future<void> add(Schedule s) async {
-    await _dao.insert(s);
+  Future<void> add(Map<String, dynamic> s) async {
+    await _fs.collection('jadwal').add({
+      ...s,
+      'created_at': FieldValue.serverTimestamp(),
+    });
     await loadAll();
   }
 
-  Future<void> update(Schedule s) async {
-    await _dao.update(s);
+  Future<void> update(String id, Map<String, dynamic> s) async {
+    await _fs.collection('jadwal').doc(id).update({
+      ...s,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
     await loadAll();
   }
 
-  Future<void> delete(int id) async {
-    await _dao.delete(id);
+  Future<void> delete(String id) async {
+    await _fs.collection('jadwal').doc(id).delete();
     await loadAll();
   }
 }

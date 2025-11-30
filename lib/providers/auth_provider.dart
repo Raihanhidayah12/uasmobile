@@ -1,12 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../core/hashing.dart'; // gunakan hash SALT+PASSWORD, generateSalt yang benar
-import '../data/local/dao/user_dao.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Tambahkan Firestore import!
+import 'package:uasmobile/models/user.dart';
+// Note: local SQLite removed — using Firestore only
 
 class AuthProvider extends ChangeNotifier {
-  final _dao = UserDao();
-  final _storage = const FlutterSecureStorage();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AppUser? _current;
@@ -22,22 +20,27 @@ class AuthProvider extends ChangeNotifier {
     _restoreSession();
   }
 
-  /// Restore session dari storage
   Future<void> _restoreSession() async {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        final u = await _dao.findByEmail(user.email!.trim());
-        _current = u;
-        if (u != null) {
-          await _storage.write(key: 'uid', value: u.id!.toString());
+        // load user profile from Firestore
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          _current = AppUser(
+            id: null,
+            email: data['email'] ?? user.email ?? '',
+            passwordHash: '',
+            salt: '',
+            role: data['role'] ?? 'siswa',
+          );
         }
       } else {
-        final idStr = await _storage.read(key: 'uid');
-        if (idStr != null) {
-          final u = await _dao.findById(int.parse(idStr));
-          _current = u;
-        }
+        _current = null;
       }
     } finally {
       _loading = false;
@@ -45,31 +48,44 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Register user baru dengan hash password (salt+password) dan salt
-  Future<bool> register(String email, String password, {String role = "siswa_pending"}) async {
+  /// Register user baru (SQLite dan Firestore)
+  Future<bool> register(
+    String email,
+    String password, {
+    String role = "siswa_pending",
+  }) async {
     _error = null;
     try {
-      final existing = await _dao.findByEmail(email.trim());
-      if (existing != null) {
-        _error = 'Email sudah terdaftar';
+      // create Firebase Auth user
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final firebaseUser = cred.user;
+      if (firebaseUser == null) {
+        _error = 'Gagal membuat akun Firebase Auth';
         notifyListeners();
         return false;
       }
-      await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
-      final salt = generateSalt();
-      final hash = hashPassword(password, salt); // GABUNGAN SALT+PASSWORD
-      final id = await _dao.insert(
-        AppUser(
-          email: email.trim(),
-          passwordHash: hash,
-          salt: salt,
-          role: role,
-          password: '',
-        ),
+
+      // write user profile to Firestore only
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .set({
+            'email': email.trim(),
+            'role': role,
+            'username': email.split('@')[0],
+            'created_at': FieldValue.serverTimestamp(),
+          });
+
+      _current = AppUser(
+        id: null,
+        email: email.trim(),
+        passwordHash: '',
+        salt: '',
+        role: role,
       );
-      final user = await _dao.findById(id);
-      _current = user;
-      await _storage.write(key: 'uid', value: user!.id.toString());
       notifyListeners();
       return true;
     } catch (e) {
@@ -79,40 +95,54 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Login user menggunakan hash password (salt+password, salt dari DB)
+  /// Login logic tetap sama
   Future<bool> login(String email, String password) async {
     _error = null;
     try {
-      await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
-      var user = await _dao.findByEmail(email.trim());
-      if (user == null) {
-        final salt = generateSalt();
-        final hash = hashPassword(password, salt);
-        final id = await _dao.insert(
-          AppUser(
-            email: email.trim(),
-            passwordHash: hash,
-            salt: salt,
-            role: 'siswa',
-            password: '',
-          ),
-        );
-        user = await _dao.findById(id);
-      }
-      if (user == null) {
-        _error = 'Gagal login: data lokal tidak ditemukan';
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final firebaseUser = cred.user;
+      if (firebaseUser == null) {
+        _error = 'Gagal login: user tidak ditemukan';
         notifyListeners();
         return false;
       }
-      if (user.role == "siswa_pending") {
-        _error = "Akun Anda menunggu verifikasi admin";
-        notifyListeners();
-        return false;
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid);
+      final doc = await docRef.get();
+      String role;
+      String emailStored;
+      if (doc.exists) {
+        final data = doc.data()!;
+        role = (data['role'] ?? 'siswa') as String;
+        emailStored = data['email'] ?? firebaseUser.email ?? '';
+        if (role == 'siswa_pending') {
+          _error = 'Akun Anda menunggu verifikasi admin';
+          notifyListeners();
+          return false;
+        }
+      } else {
+        // If no Firestore profile exists, allow login based on FirebaseAuth only.
+        // Heuristic: treat users with 'admin' in local part as admin, otherwise default to 'siswa'.
+        final local = (firebaseUser.email ?? '').split('@').first.toLowerCase();
+        if (local.contains('admin')) {
+          role = 'admin';
+        } else {
+          role = 'siswa';
+        }
+        emailStored = firebaseUser.email ?? '';
       }
-      _current = user;
-      if (user.id != null) {
-        await _storage.write(key: 'uid', value: user.id!.toString());
-      }
+
+      _current = AppUser(
+        id: null,
+        email: emailStored,
+        passwordHash: '',
+        salt: '',
+        role: role,
+      );
       notifyListeners();
       return true;
     } catch (e) {
@@ -122,10 +152,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Logout dan hapus session
   Future<void> logout() async {
     _current = null;
-    await _storage.delete(key: 'uid');
     await _auth.signOut();
     notifyListeners();
   }

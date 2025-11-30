@@ -1,4 +1,4 @@
-name: login_db_demo
+name: uasmobile
 description: "A new Flutter project."
 publish_to: 'none'
 
@@ -22,7 +22,7 @@ dependencies:
   sqflite_common_ffi: ^2.3.2
   sqflite_common_ffi_web: ^0.4.3
   path: ^1.9.0
-  path_provider: ^2.1.2      # <= tambahkan ini, WAJIB untuk Android!
+  path_provider: ^2.1.2
 
   # Security
   crypto: ^3.0.3
@@ -35,10 +35,11 @@ dependencies:
   # Grafik nilai
   fl_chart: ^0.69.0
 
-  # ✅ Notifikasi lokal
+  # Notifikasi lokal dan Firebase (PASTIKAN VERSI KOMPATIBEL)
   flutter_local_notifications: ^17.2.4
-  firebase_core: ^3.5.0
-  firebase_auth: ^5.3.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.10
+  firebase_core: ^2.30.0
 
 dev_dependencies:
   flutter_test:

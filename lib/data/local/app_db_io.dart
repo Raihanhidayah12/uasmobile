@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
-import 'package:login_db_demo/core/hashing.dart';
+import 'package:uasmobile/core/hashing.dart';
 
 class AppDb {
   static final AppDb _i = AppDb._();

@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
-import 'package:login_db_demo/core/hashing.dart';
+import 'package:uasmobile/core/hashing.dart';
 
 class AppDb {
   static final AppDb _i = AppDb._();
@@ -31,8 +31,6 @@ class AppDb {
       path = p.join(dbDir.path, 'akademik.db');
     }
 
-    print('📂 Database disimpan di: $path');
-
     _db = await openDatabase(
       path,
       version: 1,
@@ -46,6 +44,7 @@ class AppDb {
             role TEXT NOT NULL
           )
         ''');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +56,7 @@ class AppDb {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           )
         ''');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS teachers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +67,7 @@ class AppDb {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           )
         ''');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS schedules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,19 +80,7 @@ class AppDb {
             FOREIGN KEY (teacher_id) REFERENCES teachers(id)
           )
         ''');
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS grades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER,
-            subject TEXT NOT NULL,
-            tugas REAL,
-            uts REAL,
-            uas REAL,
-            final_score REAL,
-            grade TEXT,
-            FOREIGN KEY (student_id) REFERENCES students(id)
-          )
-        ''');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS announcements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,19 +90,20 @@ class AppDb {
           )
         ''');
 
-        // ✅ Seed data: admin default
+        // Insert default admin if not exists
         const rawPass = 'admin123';
         const salt = 'default';
         final hash = hashPassword(rawPass, salt);
-
-        await db.insert('users', {
-          'email': 'admin@Brawijaya.com',
-          'password_hash': hash,
-          'salt': salt,
-          'role': 'admin',
-        });
-
-        print("✅ Admin default dibuat: admin@Brawijaya.com / $rawPass");
+        await db.insert(
+          'users',
+          {
+            'email': 'admin@Brawijaya.com',
+            'password_hash': hash,
+            'salt': salt,
+            'role': 'admin',
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
       },
     );
 

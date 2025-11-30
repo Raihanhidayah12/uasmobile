@@ -1,14 +1,13 @@
 ﻿import 'package:flutter/material.dart';
-import '../data/local/dao/announcement_dao.dart';
-import '../models/announcement.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
-  final AnnouncementDao _dao = AnnouncementDao();
+  final _fs = FirebaseFirestore.instance;
 
-  List<Announcement> _items = [];
+  List<Map<String, dynamic>> _items = [];
   bool _loading = false;
 
-  List<Announcement> get items => _items;
+  List<Map<String, dynamic>> get items => _items;
   bool get loading => _loading;
 
   AnnouncementProvider() {
@@ -18,29 +17,39 @@ class AnnouncementProvider extends ChangeNotifier {
   Future<void> loadAll() async {
     _loading = true;
     notifyListeners();
-    _items = await _dao.getAll();
+    final snap = await _fs
+        .collection('pengumuman')
+        .orderBy('created_at', descending: true)
+        .get();
+    _items = snap.docs.map((d) {
+      final m = d.data();
+      m['id'] = d.id;
+      return m;
+    }).toList();
     _loading = false;
     notifyListeners();
   }
 
   Future<void> add(String judul, String isi) async {
-    await _dao.insert(
-      Announcement(
-        title: judul,
-        content: isi,
-        createdAt: DateTime.now().toIso8601String(),
-      ),
-    );
+    await _fs.collection('pengumuman').add({
+      'title': judul,
+      'content': isi,
+      'created_at': FieldValue.serverTimestamp(),
+    });
     await loadAll();
   }
 
-  Future<void> update(Announcement a) async {
-    await _dao.update(a);
+  Future<void> update(String id, String judul, String isi) async {
+    await _fs.collection('pengumuman').doc(id).update({
+      'title': judul,
+      'content': isi,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
     await loadAll();
   }
 
-  Future<void> delete(int id) async {
-    await _dao.delete(id);
+  Future<void> delete(String id) async {
+    await _fs.collection('pengumuman').doc(id).delete();
     await loadAll();
   }
 }

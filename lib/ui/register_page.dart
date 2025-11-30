@@ -27,18 +27,20 @@ class _RegisterPageState extends State<RegisterPage> {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 550),
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final slide = Tween<Offset>(begin: const Offset(0, 0.11), end: Offset.zero).chain(
-            CurveTween(curve: Curves.easeOutQuart),
-          );
-          final fade = Tween<double>(begin: 0, end: 1).chain(CurveTween(curve: Curves.easeIn));
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 0.11),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutQuart));
+          final fade = Tween<double>(
+            begin: 0,
+            end: 1,
+          ).chain(CurveTween(curve: Curves.easeIn));
           return SlideTransition(
             position: animation.drive(slide),
-            child: FadeTransition(
-              opacity: animation.drive(fade),
-              child: child,
-            ),
+            child: FadeTransition(opacity: animation.drive(fade), child: child),
           );
         },
       ),
@@ -50,7 +52,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.colorScheme.primary ?? Colors.blue;
+    final primaryColor = theme.colorScheme.primary;
 
     return Scaffold(
       body: Container(
@@ -59,7 +61,10 @@ class _RegisterPageState extends State<RegisterPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDark
-                ? [Colors.grey[950] ?? Colors.black, Colors.indigo[900] ?? Colors.black]
+                ? [
+                    Colors.grey[950] ?? Colors.black,
+                    Colors.indigo[900] ?? Colors.black,
+                  ]
                 : [const Color(0xFF90CAF9), const Color(0xFFE3EBF7)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -74,7 +79,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 curve: Curves.easeInOutQuad,
                 constraints: const BoxConstraints(maxWidth: 420),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.22),
+                  color: isDark
+                      ? Colors.white.withOpacity(0.06)
+                      : Colors.white.withOpacity(0.22),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
@@ -86,7 +93,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                   ],
                   border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.10) : Colors.white.withOpacity(0.17),
+                    color: isDark
+                        ? Colors.white.withOpacity(0.10)
+                        : Colors.white.withOpacity(0.17),
                   ),
                 ),
                 child: ClipRRect(
@@ -116,7 +125,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 fontWeight: FontWeight.bold,
                                 color: isDark
                                     ? Colors.white.withOpacity(0.95)
-                                    : Colors.indigo[700] ?? Colors.indigo,
+                                    : Colors.indigo[700],
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -147,13 +156,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               controller: _confirm,
                               label: 'Konfirmasi Password',
                               obscure: true,
-                              validator: (v) => Validators.confirm(v, _pass.text),
+                              validator: (v) =>
+                                  Validators.confirm(v, _pass.text),
                             ),
                             const SizedBox(height: 18),
                             if (auth.error != null)
                               Text(
                                 auth.error!,
-                                style: TextStyle(color: theme.colorScheme.error ?? Colors.red),
+                                style: TextStyle(
+                                  color: theme.colorScheme.error,
+                                ),
                               ),
                             const SizedBox(height: 16),
                             AppButton(
@@ -162,11 +174,15 @@ class _RegisterPageState extends State<RegisterPage> {
                               onPressed: _submitting
                                   ? null
                                   : () async {
-                                      if (!_formKey.currentState!.validate()) return;
+                                      if (!_formKey.currentState!.validate())
+                                        return;
                                       setState(() => _submitting = true);
 
-                                      final email = "${_username.text.trim()}@Brawijaya.com";
-                                      final ok = await context.read<AuthProvider>().register(
+                                      final email =
+                                          "${_username.text.trim()}@Brawijaya.com";
+                                      final ok = await context
+                                          .read<AuthProvider>()
+                                          .register(
                                             email,
                                             _pass.text,
                                             role: _role,
@@ -176,17 +192,24 @@ class _RegisterPageState extends State<RegisterPage> {
                                       setState(() => _submitting = false);
 
                                       if (ok) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Registrasi berhasil! Akun Anda menunggu verifikasi admin.'),
+                                            content: Text(
+                                              'Registrasi berhasil! Akun Anda menunggu verifikasi admin.',
+                                            ),
                                           ),
                                         );
                                         _navigateToLogin(context);
                                       } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              auth.error ?? 'Gagal daftar, coba lagi',
+                                              auth.error ??
+                                                  'Gagal daftar, coba lagi',
                                             ),
                                           ),
                                         );
