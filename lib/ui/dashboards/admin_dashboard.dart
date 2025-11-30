@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // Removed local DAO imports — dashboard reads counts from Firestore now
@@ -22,6 +24,10 @@ class DashboardAdmin extends StatefulWidget {
 class _DashboardAdminState extends State<DashboardAdmin> {
   final FirebaseFirestore _fs = FirebaseFirestore.instance;
 
+  late StreamSubscription<QuerySnapshot> _studentSubscription;
+  late StreamSubscription<QuerySnapshot> _teacherSubscription;
+  late StreamSubscription<QuerySnapshot> _userSubscription;
+
   int _studentCount = 0;
   int _teacherCount = 0;
   int _userCount = 0;
@@ -30,25 +36,68 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   @override
   void initState() {
     super.initState();
-    _loadCounts();
+    _setupRealtimeListeners();
   }
 
-  Future<void> _loadCounts() async {
+  void _setupRealtimeListeners() {
     setState(() => _loading = true);
-    try {
-      // Read counts from Firestore collections
-      final siswaSnap = await _fs.collection('siswa').get();
-      final guruSnap = await _fs.collection('guru').get();
-      final usersSnap = await _fs.collection('users').get();
-      setState(() {
-        _studentCount = siswaSnap.docs.length;
-        _teacherCount = guruSnap.docs.length;
-        _userCount = usersSnap.docs.length;
-        _loading = false;
-      });
-    } catch (e) {
+
+    // Listener for siswa collection
+    _studentSubscription = _fs
+        .collection('siswa')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            setState(() => _studentCount = snapshot.docs.length);
+            _checkLoadingComplete();
+          },
+          onError: (error) {
+            setState(() => _loading = false);
+          },
+        );
+
+    // Listener for guru collection
+    _teacherSubscription = _fs
+        .collection('guru')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            setState(() => _teacherCount = snapshot.docs.length);
+            _checkLoadingComplete();
+          },
+          onError: (error) {
+            setState(() => _loading = false);
+          },
+        );
+
+    // Listener for users collection
+    _userSubscription = _fs
+        .collection('users')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            setState(() => _userCount = snapshot.docs.length);
+            _checkLoadingComplete();
+          },
+          onError: (error) {
+            setState(() => _loading = false);
+          },
+        );
+  }
+
+  void _checkLoadingComplete() {
+    // Set loading to false once all counts have been loaded at least once
+    if (_studentCount >= 0 && _teacherCount >= 0 && _userCount >= 0) {
       setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _studentSubscription.cancel();
+    _teacherSubscription.cancel();
+    _userSubscription.cancel();
+    super.dispose();
   }
 
   Widget _buildStatisticsCard({

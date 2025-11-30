@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   bool _submitting = false;
-  bool _showPassword = false; // <--- Tambahkan state ini
+  bool _showPassword = false;
 
   void _navigateWithFadeSlide(BuildContext context, Widget page) {
     Navigator.of(context).pushReplacement(
@@ -30,11 +30,13 @@ class _LoginPageState extends State<LoginPage> {
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final slide = Tween<Offset>(
-            begin: const Offset(0.0, 0.08), end: Offset.zero)
-            .chain(CurveTween(curve: Curves.easeOutExpo));
+            begin: const Offset(0.0, 0.08),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutExpo));
           final fade = Tween<double>(
-            begin: 0.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeInOut));
+            begin: 0.0,
+            end: 1.0,
+          ).chain(CurveTween(curve: Curves.easeInOut));
           return SlideTransition(
             position: animation.drive(slide),
             child: FadeTransition(
@@ -43,6 +45,29 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showErrorSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating, // [web:23]
+        backgroundColor: Colors.red[600],
+        elevation: 0,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -144,8 +169,8 @@ class _LoginPageState extends State<LoginPage> {
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _showPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: Colors.grey[600],
                                   ),
                                   onPressed: () {
@@ -156,16 +181,46 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 6),
                             const SizedBox(height: 11),
+
+                            // Error card modern di bawah field (optional)
                             if (authProv.error != null)
-                              Text(
-                                authProv.error!,
-                                style: TextStyle(
-                                  color: theme?.colorScheme.error ?? Colors.red,
-                                  fontWeight: FontWeight.w500,
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        authProv.error!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+
                             const SizedBox(height: 16),
                             AppButton(
                               text: 'Masuk',
@@ -182,16 +237,19 @@ class _LoginPageState extends State<LoginPage> {
 
                                       if (!mounted) return;
                                       if (ok) {
-                                        final user = context.read<AuthProvider>().current;
+                                        final user =
+                                            context.read<AuthProvider>().current;
                                         if (user == null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Terjadi error: data user null')),
+                                          _showErrorSnack(
+                                            context,
+                                            'Terjadi error: data user null',
                                           );
                                           return;
                                         }
                                         if (user.role == 'siswa_pending') {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Akun Anda menunggu verifikasi admin')),
+                                          _showErrorSnack(
+                                            context,
+                                            'Akun Anda menunggu verifikasi admin',
                                           );
                                           return;
                                         }
@@ -212,13 +270,15 @@ class _LoginPageState extends State<LoginPage> {
                                         if (page != null) {
                                           _navigateWithFadeSlide(context, page);
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Role tidak dikenal')),
+                                          _showErrorSnack(
+                                            context,
+                                            'Role tidak dikenal',
                                           );
                                         }
                                       } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(authProv.error ?? 'Login gagal')),
+                                        _showErrorSnack(
+                                          context,
+                                          authProv.error ?? 'Login gagal. Coba lagi.',
                                         );
                                       }
                                     },
@@ -227,15 +287,25 @@ class _LoginPageState extends State<LoginPage> {
                             TextButton(
                               onPressed: () => Navigator.of(context).push(
                                 PageRouteBuilder(
-                                  transitionDuration: const Duration(milliseconds: 450),
-                                  pageBuilder: (context, animation, secondaryAnimation) =>
+                                  transitionDuration:
+                                      const Duration(milliseconds: 450),
+                                  pageBuilder: (context, animation,
+                                          secondaryAnimation) =>
                                       const RegisterPage(),
-                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                    final slide =
-                                        Tween<Offset>(begin: const Offset(0, 0.13), end: Offset.zero)
-                                            .chain(CurveTween(curve: Curves.easeOutBack));
-                                    final fade =
-                                        Tween<double>(begin: 0, end: 1).chain(CurveTween(curve: Curves.easeIn));
+                                  transitionsBuilder: (context, animation,
+                                      secondaryAnimation, child) {
+                                    final slide = Tween<Offset>(
+                                      begin: const Offset(0, 0.13),
+                                      end: Offset.zero,
+                                    ).chain(
+                                      CurveTween(curve: Curves.easeOutBack),
+                                    );
+                                    final fade = Tween<double>(
+                                      begin: 0,
+                                      end: 1,
+                                    ).chain(
+                                      CurveTween(curve: Curves.easeIn),
+                                    );
                                     return SlideTransition(
                                       position: animation.drive(slide),
                                       child: FadeTransition(

@@ -8,7 +8,8 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final TextInputAction? action;
   final TextInputType? keyboardType;
-  final IconData? prefixIcon; // ✅ tambahkan ini
+  final IconData? prefixIcon;
+  final Widget? suffixIcon;
 
   const AppTextField({
     super.key,
@@ -18,7 +19,8 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.action,
     this.keyboardType,
-    this.prefixIcon, // ✅ tambahkan ini
+    this.prefixIcon,
+    this.suffixIcon,
   });
 
   @override
@@ -32,7 +34,8 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null, // ✅ gunakan
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        suffixIcon: suffixIcon,
       ),
     );
   }

@@ -21,6 +21,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirm = TextEditingController();
   bool _submitting = false;
 
+  // state untuk show/hide password
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
+
   final String _role = 'siswa_pending';
 
   void _navigateToLogin(BuildContext context) {
@@ -40,9 +44,37 @@ class _RegisterPageState extends State<RegisterPage> {
           ).chain(CurveTween(curve: Curves.easeIn));
           return SlideTransition(
             position: animation.drive(slide),
-            child: FadeTransition(opacity: animation.drive(fade), child: child),
+            child: FadeTransition(
+              opacity: animation.drive(fade),
+              child: child,
+            ),
           );
         },
+      ),
+    );
+  }
+
+  void _showSnack(BuildContext context, String message,
+      {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? Colors.red[600] : Colors.green[600],
+        elevation: 0,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        content: Row(
+          children: [
+            Icon(
+              error ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
       ),
     );
   }
@@ -73,7 +105,8 @@ class _RegisterPageState extends State<RegisterPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeInOutQuad,
@@ -111,7 +144,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           children: [
                             CircleAvatar(
                               radius: 43,
-                              backgroundColor: primaryColor.withOpacity(0.11),
+                              backgroundColor:
+                                  primaryColor.withOpacity(0.11),
                               child: Icon(
                                 Icons.person_add_alt_1_rounded,
                                 size: 45,
@@ -145,28 +179,89 @@ class _RegisterPageState extends State<RegisterPage> {
                               },
                             ),
                             const SizedBox(height: 16),
+                            // PASSWORD
                             AppTextField(
                               controller: _pass,
                               label: 'Password',
-                              obscure: true,
-                              validator: (v) => Validators.password(v, min: 6),
+                              obscure: !_showPassword,
+                              validator: (v) =>
+                                  Validators.password(v, min: 6),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _showPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _showPassword = !_showPassword;
+                                  });
+                                },
+                              ),
                             ),
                             const SizedBox(height: 16),
+                            // KONFIRMASI PASSWORD
                             AppTextField(
                               controller: _confirm,
                               label: 'Konfirmasi Password',
-                              obscure: true,
+                              obscure: !_showConfirmPassword,
                               validator: (v) =>
                                   Validators.confirm(v, _pass.text),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _showConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _showConfirmPassword =
+                                        !_showConfirmPassword;
+                                  });
+                                },
+                              ),
                             ),
                             const SizedBox(height: 18),
+
                             if (auth.error != null)
-                              Text(
-                                auth.error!,
-                                style: TextStyle(
-                                  color: theme.colorScheme.error,
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        auth.error!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+
                             const SizedBox(height: 16),
                             AppButton(
                               text: 'Daftar',
@@ -174,12 +269,15 @@ class _RegisterPageState extends State<RegisterPage> {
                               onPressed: _submitting
                                   ? null
                                   : () async {
-                                      if (!_formKey.currentState!.validate())
+                                      if (!_formKey.currentState!
+                                          .validate()) {
                                         return;
+                                      }
                                       setState(() => _submitting = true);
 
                                       final email =
                                           "${_username.text.trim()}@Brawijaya.com";
+
                                       final ok = await context
                                           .read<AuthProvider>()
                                           .register(
@@ -192,26 +290,18 @@ class _RegisterPageState extends State<RegisterPage> {
                                       setState(() => _submitting = false);
 
                                       if (ok) {
-                                        ScaffoldMessenger.of(
+                                        _showSnack(
                                           context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Registrasi berhasil! Akun Anda menunggu verifikasi admin.',
-                                            ),
-                                          ),
+                                          'Registrasi berhasil! Akun Anda menunggu verifikasi admin.',
+                                          error: false,
                                         );
                                         _navigateToLogin(context);
                                       } else {
-                                        ScaffoldMessenger.of(
+                                        _showSnack(
                                           context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              auth.error ??
-                                                  'Gagal daftar, coba lagi',
-                                            ),
-                                          ),
+                                          auth.error ??
+                                              'Gagal daftar, coba lagi.',
+                                          error: true,
                                         );
                                       }
                                     },
