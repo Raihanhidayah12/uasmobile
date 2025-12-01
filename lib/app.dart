@@ -5,6 +5,7 @@ import 'providers/announcement_provider.dart';
 import 'providers/schedule_provider.dart';
 import 'providers/teacher_provider.dart';
 import 'ui/splash_page.dart';
+import 'utils/app_navigator.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -20,6 +21,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Sistem Informasi Akademik',
+        navigatorKey: appNavigatorKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/notification_service.dart';
+import '../utils/app_navigator.dart';
+import '../utils/in_app_banner.dart';
+import '../ui/pengumuman_detail_page.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
   final _fs = FirebaseFirestore.instance;
@@ -71,6 +74,31 @@ class AnnouncementProvider extends ChangeNotifier {
                       title: m['title'] ?? 'Pengumuman baru',
                       body: m['content'] ?? '',
                     );
+                    // Also show an in-app popup dialog when app is in foreground
+                    try {
+                      // show a modern in-app banner using Overlay
+                      // avoid calling UI APIs synchronously inside the listener
+                      final payload = Map<String, dynamic>.from(m);
+                      Future.microtask(() {
+                        showInAppAnnouncement(
+                          title: payload['title'] ?? 'Pengumuman baru',
+                          body: payload['content'] ?? '',
+                          onTap: () {
+                            try {
+                              appNavigatorKey.currentState?.push(
+                                MaterialPageRoute(
+                                  builder: (_) => PengumumanDetailPage(
+                                    announcement: payload,
+                                  ),
+                                ),
+                              );
+                            } catch (_) {}
+                          },
+                        );
+                      });
+                    } catch (_) {
+                      // ignore UI errors
+                    }
                   } catch (_) {
                     // ignore notification errors silently
                   }

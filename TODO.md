@@ -1,7 +1,2 @@
-- [ ] Update Scaffold background to match guru dashboard colors (light/dark mode)
-- [ ] Replace AppBar with custom gradient header section
-- [ ] Wrap form content in a Card with rounded corners and elevation
-- [ ] Style TextFormFields with consistent design
-- [ ] Style buttons to match dashboard design
-- [ ] Use SafeArea and ListView structure like dashboard
-- [ ] Apply consistent text styles and spacing
+- [ ] Fix invalid curve 'Curves.easeOutCubic' to 'Curves.easeOut' in _InAppBannerState initState
+- [ ] Change 'Colors.blueGrey[900]' to 'Colors.blueGrey.shade900' in build method for safety

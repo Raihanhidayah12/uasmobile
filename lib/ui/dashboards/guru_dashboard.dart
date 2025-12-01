@@ -414,56 +414,145 @@ class _DashboardGuruState extends State<DashboardGuru> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          ...announcements.map(
-                            (announcement) => Card(
-                              color: isDark
-                                  ? Colors.blueGrey[900]
-                                  : Colors.white,
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      announcement['title'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.cyan[100]
-                                            : Colors.black87,
+                          SizedBox(
+                            height: isMobile ? 170 : 200,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: announcements.length,
+                              padding: const EdgeInsets.only(right: 16),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (context, index) {
+                                final announcement = announcements[index];
+                                final cardWidth = isMobile
+                                    ? MediaQuery.of(context).size.width * 0.78
+                                    : (MediaQuery.of(context).size.width - 96) /
+                                          3;
+                                return SizedBox(
+                                  width: cardWidth,
+                                  child: Card(
+                                    color: isDark
+                                        ? Colors.blueGrey[900]
+                                        : Colors.white,
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    margin: EdgeInsets.zero,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: isDark
+                                              ? [
+                                                  Colors.blueGrey[900]!,
+                                                  Colors.blueGrey[800]!,
+                                                ]
+                                              : [
+                                                  Colors.white,
+                                                  Colors.grey[50]!,
+                                                ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.teal
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.campaign,
+                                                    color: Colors.teal,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    announcement['title'] ?? '',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: isDark
+                                                          ? Colors.cyan[100]
+                                                          : Colors.black87,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Expanded(
+                                              child: Text(
+                                                announcement['content'] ?? '',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? Colors.blueGrey[300]
+                                                      : Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  announcement['created_at'] !=
+                                                          null
+                                                      ? DateTime.fromMillisecondsSinceEpoch(
+                                                          (announcement['created_at']
+                                                                  as Timestamp)
+                                                              .millisecondsSinceEpoch,
+                                                        ).toString().split(
+                                                          ' ',
+                                                        )[0]
+                                                      : '',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? Colors.blueGrey[300]
+                                                        : Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      announcement['content'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: isDark
-                                            ? Colors.white
-                                            : Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      announcement['created_at'] != null
-                                          ? 'Dibuat: ${DateTime.fromMillisecondsSinceEpoch((announcement['created_at'] as Timestamp).millisecondsSinceEpoch).toString().split(' ')[0]}'
-                                          : '',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark
-                                            ? Colors.blueGrey[300]
-                                            : Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(height: 32),

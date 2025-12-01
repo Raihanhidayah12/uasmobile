@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // Removed local DAO imports — dashboard reads counts from Firestore now
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart' as app_auth;
+import '../../providers/announcement_provider.dart';
 import '../home_page.dart';
 
 // Import halaman CRUD admin
@@ -158,6 +159,8 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     Widget _buildHeader() {
       return Container(
@@ -234,7 +237,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                 borderRadius: BorderRadius.circular(50),
                 splashColor: Colors.white30,
                 onTap: () async {
-                  await context.read<AuthProvider>().logout();
+                  await context.read<app_auth.AuthProvider>().logout();
                   if (context.mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,
@@ -376,6 +379,182 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                           ],
                         ),
                   const SizedBox(height: 32),
+                  Consumer<AnnouncementProvider>(
+                    builder: (context, announcementProvider, child) {
+                      if (announcementProvider.loading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final userRole =
+                          context.read<app_auth.AuthProvider>().current?.role ??
+                          'admin';
+                      final announcements = announcementProvider.items
+                          .where((a) {
+                            final aud = (a['audience'] ?? 'all') as String;
+                            return aud == 'all' || aud == userRole;
+                          })
+                          .take(5)
+                          .toList();
+                      if (announcements.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Pengumuman",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: isMobile ? 170 : 200,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: announcements.length,
+                              padding: const EdgeInsets.only(right: 16),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (context, index) {
+                                final announcement = announcements[index];
+                                final cardWidth = isMobile
+                                    ? MediaQuery.of(context).size.width * 0.78
+                                    : (MediaQuery.of(context).size.width - 96) /
+                                          3;
+                                return SizedBox(
+                                  width: cardWidth,
+                                  child: Card(
+                                    color: isDark
+                                        ? Colors.blueGrey[900]
+                                        : Colors.white,
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    margin: EdgeInsets.zero,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: isDark
+                                              ? [
+                                                  Colors.blueGrey[900]!,
+                                                  Colors.blueGrey[800]!,
+                                                ]
+                                              : [
+                                                  Colors.white,
+                                                  Colors.grey[50]!,
+                                                ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.teal
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.campaign,
+                                                    color: Colors.teal,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    announcement['title'] ?? '',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: isDark
+                                                          ? Colors.cyan[100]
+                                                          : Colors.black87,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Expanded(
+                                              child: Text(
+                                                announcement['content'] ?? '',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? Colors.blueGrey[300]
+                                                      : Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  announcement['created_at'] !=
+                                                          null
+                                                      ? DateTime.fromMillisecondsSinceEpoch(
+                                                          (announcement['created_at']
+                                                                  as Timestamp)
+                                                              .millisecondsSinceEpoch,
+                                                        ).toString().split(
+                                                          ' ',
+                                                        )[0]
+                                                      : '',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? Colors.blueGrey[300]
+                                                        : Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      );
+                    },
+                  ),
                   Text(
                     "Menu",
                     style: TextStyle(
