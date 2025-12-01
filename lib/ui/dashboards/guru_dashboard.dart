@@ -389,7 +389,14 @@ class _DashboardGuruState extends State<DashboardGuru> {
                       if (announcementProvider.loading) {
                         return const Center(child: CircularProgressIndicator());
                       }
+                      final userRole =
+                          context.read<app_auth.AuthProvider>().current?.role ??
+                          'siswa';
                       final announcements = announcementProvider.items
+                          .where((a) {
+                            final aud = (a['audience'] ?? 'all') as String;
+                            return aud == 'all' || aud == userRole;
+                          })
                           .take(5)
                           .toList();
                       if (announcements.isEmpty) {
