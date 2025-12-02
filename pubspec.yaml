@@ -32,8 +32,11 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.12.0
 
+  google_fonts: ^6.0.0
+
   # Grafik nilai
   fl_chart: ^0.69.0
+  shared_preferences: ^2.1.0
 
   # Notifikasi lokal dan Firebase (PASTIKAN VERSI KOMPATIBEL)
   flutter_local_notifications: ^17.2.4

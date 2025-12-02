@@ -41,12 +41,12 @@ class _RaporPageState extends State<RaporPage> {
     }
 
     try {
-      // find siswa doc by user_id
       final sSnap = await _fs
           .collection('siswa')
           .where('user_id', isEqualTo: user.uid)
           .limit(1)
           .get();
+
       if (sSnap.docs.isEmpty) {
         setState(() {
           _error = 'Data siswa tidak ditemukan';
@@ -60,11 +60,11 @@ class _RaporPageState extends State<RaporPage> {
       _nama = (s['name'] ?? s['nama'] ?? '') as String;
       _nis = (s['nis'] ?? '') as String;
 
-      // load grades for this student
       final gSnap = await _fs
           .collection('grade')
           .where('student_id', isEqualTo: siswaId)
           .get();
+
       _nilai = gSnap.docs.map((d) {
         final data = Map<String, dynamic>.from(
           d.data() as Map<String, dynamic>,
@@ -90,31 +90,212 @@ class _RaporPageState extends State<RaporPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    // STATE: Loading
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Rapor Siswa')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Rapor Siswa')),
-        body: Center(
-          child: Text(_error!, style: const TextStyle(color: Colors.red)),
+        appBar: AppBar(
+          title: const Text('Rapor Siswa'),
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Rapor Siswa')),
-      body: PdfPreview(
-        build: (format) => PdfHelper.generateRapor(
-          nama: _nama.isNotEmpty
-              ? _nama
-              : (FirebaseAuth.instance.currentUser?.email ?? ''),
-          nis: _nis.isNotEmpty ? _nis : '-',
-          nilai: _nilai,
+    // STATE: Error
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Rapor Siswa'),
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          elevation: 0,
+          centerTitle: true,
         ),
+        body: Center(
+          child: Card(
+            color: colorScheme.errorContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onErrorContainer,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // STATE: Data siap
+    final displayNama = _nama.isNotEmpty
+        ? _nama
+        : (FirebaseAuth.instance.currentUser?.email ?? 'Tidak diketahui');
+    final displayNis = _nis.isNotEmpty ? _nis : '-';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rapor Siswa'),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: CustomScrollView(
+        slivers: [
+          // Kartu profil siswa
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Card(
+                color: colorScheme.surfaceVariant,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Icon(
+                          Icons.person,
+                          color: colorScheme.onPrimaryContainer,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayNama,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'NIS: $displayNis',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Kartu preview rapor
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header rapor + tombol aksi
+                    Container(
+                      color: colorScheme.primaryContainer,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.picture_as_pdf,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Pratinjau Rapor',
+                            style: textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          FilledButton.tonalIcon(
+                            icon: const Icon(Icons.download),
+                            label: const Text('Download'),
+                            onPressed: () async {
+                              await Printing.layoutPdf(
+                                onLayout: (format) =>
+                                    PdfHelper.generateRapor(
+                                  nama: displayNama,
+                                  nis: displayNis,
+                                  nilai: _nilai,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Isi PdfPreview
+                    SizedBox(
+                      height: 520,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: PdfPreview(
+                          padding: const EdgeInsets.all(8),
+                          canDebug: false,
+                          useActions: true,
+                          build: (format) => PdfHelper.generateRapor(
+                            nama: displayNama,
+                            nis: displayNis,
+                            nilai: _nilai,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

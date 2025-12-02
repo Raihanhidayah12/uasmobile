@@ -2,12 +2,17 @@
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../providers/announcement_provider.dart';
 import '../home_page.dart';
 import '../siswa/rapor_page.dart';
 import '../siswa/lihat_jadwal_page.dart';
 import '../siswa/pengumuman_page.dart';
+import '../../models/grade.dart';
+import '../widgets/grade_chart.dart';
 
 class DashboardSiswa extends StatefulWidget {
   const DashboardSiswa({super.key});
@@ -17,14 +22,38 @@ class DashboardSiswa extends StatefulWidget {
 }
 
 class _DashboardSiswaState extends State<DashboardSiswa> {
-  String _studentName = 'Siswa';
+  bool isDarkMode = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final email = context.read<app_auth.AuthProvider>().current?.email ?? '';
-    final name = _formatNameFromEmail(email);
-    setState(() => _studentName = name.isNotEmpty ? name : 'Siswa');
+  void initState() {
+    super.initState();
+    _loadThemePref();
+  }
+
+  Future<void> _loadThemePref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool('isDarkMode');
+      if (saved != null) {
+        setState(() => isDarkMode = saved);
+      } else {
+        // default to system brightness if no pref is stored
+        final platformBrightness =
+            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        setState(() => isDarkMode = platformBrightness == Brightness.dark);
+      }
+    } catch (_) {
+      // ignore errors and keep default
+    }
+  }
+
+  Future<void> _saveThemePref(bool dark) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isDarkMode', dark);
+    } catch (_) {
+      // ignore
+    }
   }
 
   String _formatNameFromEmail(String email) {
@@ -36,101 +65,163 @@ class _DashboardSiswaState extends State<DashboardSiswa> {
         .join(' ');
   }
 
-  Widget _buildHeader(bool isMobile) {
+  Future<List<Grade>> _fetchGrades() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    final fs = FirebaseFirestore.instance;
+    final sSnap = await fs
+        .collection('siswa')
+        .where('user_id', isEqualTo: user.uid)
+        .limit(1)
+        .get();
+    if (sSnap.docs.isEmpty) return [];
+
+    final siswaId = sSnap.docs.first.id;
+    final gSnap = await fs
+        .collection('grade')
+        .where('student_id', isEqualTo: siswaId)
+        .get();
+
+    return gSnap.docs.map((d) {
+      final data = d.data();
+      final subject = (data['subject'] ?? 'Umum') as String;
+      final akhir =
+          (data['akhir'] ?? data['final'] ?? data['final_score'] ?? 0) as num;
+      return Grade(
+        id: (data['id'] is int) ? data['id'] as int : 0,
+        studentId: (data['student_id'] is int) ? data['student_id'] as int : 0,
+        subject: subject,
+        tugas: (data['tugas'] is num) ? (data['tugas'] as num).toDouble() : 0.0,
+        uts: (data['uts'] is num) ? (data['uts'] as num).toDouble() : 0.0,
+        uas: (data['uas'] is num) ? (data['uas'] as num).toDouble() : 0.0,
+        finalScore: akhir.toDouble(),
+        grade: (data['grade'] ?? '-') as String,
+      );
+    }).toList();
+  }
+
+  Widget _buildHeader(bool isMobile, ThemeData theme) {
+    final auth = context.watch<app_auth.AuthProvider>();
+    final user = auth.current;
+    String studentName;
+    if (user != null && (user.username ?? '').trim().isNotEmpty) {
+      studentName = user.username!;
+    } else {
+      final email = user?.email ?? '';
+      studentName = _formatNameFromEmail(email);
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 35, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.indigo,
-            Colors.deepPurpleAccent,
-            Colors.purpleAccent.shade100,
-          ],
+          colors: theme.brightness == Brightness.dark
+              ? [Colors.deepPurple.shade700, Colors.indigo.shade700]
+              : [
+                  Colors.indigo,
+                  Colors.deepPurpleAccent,
+                  Colors.purpleAccent.shade100,
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.purpleAccent.withOpacity(.12),
-            offset: const Offset(0, 11),
-            blurRadius: 34,
+            color: theme.brightness == Brightness.dark
+                ? Colors.black54
+                : Colors.purpleAccent.withOpacity(.15),
+            offset: const Offset(0, 12),
+            blurRadius: 25,
           ),
         ],
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(35)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 2),
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: theme.brightness == Brightness.dark
+                    ? [Colors.deepPurple.shade300, Colors.indigo.shade300]
+                    : [Colors.purpleAccent, Colors.deepPurpleAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.deepPurple.withOpacity(.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.indigo.withOpacity(.9)
+                      : Colors.deepPurple.withOpacity(.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
-            child: CircleAvatar(
-              radius: 37,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Colors.indigo[700], size: 46),
+            child: const CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.transparent,
+              child: Icon(Icons.person, color: Colors.white, size: 50),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 18),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Halo, $_studentName",
-                  style: TextStyle(
+                  "Halo, $studentName",
+                  style: GoogleFonts.poppins(
                     color: Colors.white,
-                    fontSize: isMobile ? 18 : 24,
-                    fontWeight: FontWeight.w900,
+                    fontSize: isMobile ? 24 : 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.4,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   "Selamat datang di dashboard siswa",
-                  style: TextStyle(
-                    color: Colors.purple[50],
-                    fontSize: isMobile ? 13 : 14,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white70,
+                    fontSize: isMobile ? 14 : 16,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(50),
-              splashColor: Colors.white30,
-              onTap: () async {
-                await context.read<app_auth.AuthProvider>().logout();
-                if (context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomePage()),
-                    (route) => false,
-                  );
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Icon(Icons.logout, color: Colors.white, size: 29),
-              ),
+          const SizedBox(width: 12),
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.wb_sunny : Icons.nights_stay,
+              color: Colors.white,
+              size: 30,
             ),
+            tooltip: isDarkMode ? 'Light Mode' : 'Dark Mode',
+            onPressed: () async {
+              setState(() {
+                isDarkMode = !isDarkMode;
+              });
+              await _saveThemePref(isDarkMode);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white, size: 30),
+            tooltip: 'Logout',
+            onPressed: () async {
+              await context.read<app_auth.AuthProvider>().logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),
@@ -144,50 +235,58 @@ class _DashboardSiswaState extends State<DashboardSiswa> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      splashColor: color.withOpacity(.15),
+      borderRadius: BorderRadius.circular(24),
+      splashColor: color.withOpacity(.12),
       child: Card(
-        color: isDark ? Colors.blueGrey[900] : Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        color: isDark ? Colors.grey[850] : Colors.white,
+        elevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 7),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 7),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
           child: ListTile(
             leading: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color.withOpacity(0.53), color.withOpacity(0.95)],
+                  colors: [color.withOpacity(0.7), color],
                   begin: Alignment.bottomLeft,
                   end: Alignment.topRight,
                 ),
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               padding: const EdgeInsets.all(12),
-              child: Icon(icon, color: Colors.white, size: 31),
+              child: Icon(icon, color: Colors.white, size: 34),
             ),
             title: Text(
               title,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 19,
                 color: isDark ? Colors.cyan[100] : color,
               ),
             ),
             subtitle: Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 13.3,
+              style: GoogleFonts.poppins(
+                fontSize: 13.7,
                 color: isDark ? Colors.blueGrey[100] : Colors.grey[700],
               ),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              size: 30,
-              color: Colors.deepPurpleAccent,
+              size: 32,
+              color: Colors.deepPurpleAccent.shade700,
             ),
           ),
         ),
@@ -196,287 +295,246 @@ class _DashboardSiswaState extends State<DashboardSiswa> {
   }
 
   Widget _buildGrafikPreview(bool isMobile) {
-    return FutureBuilder<Map<String, double>>(
-      future: _fetchSubjectAverages(),
+    return FutureBuilder<List<Grade>>(
+      future: _fetchGrades(),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting)
+        if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
-        if (snap.hasError)
-          return Center(child: Text('Gagal memuat grafik: ${snap.error}'));
-        final subjects = snap.data ?? {};
-        if (subjects.isEmpty) {
+        }
+        if (snap.hasError) {
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
             child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Grafik Nilai',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text('Belum ada data nilai untuk ditampilkan.'),
-                ],
+              padding: const EdgeInsets.all(14),
+              child: Text(
+                'Gagal memuat grafik: ${snap.error}',
+                style: GoogleFonts.poppins(fontSize: 14),
               ),
             ),
           );
         }
 
-        final entries = subjects.entries.toList();
-        final display = entries.take(isMobile ? 3 : 5).toList();
+        final grades = snap.data ?? [];
+        if (grades.isEmpty) {
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text(
+                'Belum ada data nilai untuk ditampilkan.',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ),
+          );
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Grafik Nilai',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: display.map((e) {
-                    final pct = (e.value / 100).clamp(0.0, 1.0);
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              e.key,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 5,
-                            child: LinearProgressIndicator(value: pct),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 42,
-                            child: Text(e.value.toStringAsFixed(1)),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
+            const SizedBox(height: 10),
+            GradeChart(grades: grades),
           ],
         );
       },
     );
   }
 
-  Future<Map<String, double>> _fetchSubjectAverages() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return {};
-    final fs = FirebaseFirestore.instance;
-    final sSnap = await fs
-        .collection('siswa')
-        .where('user_id', isEqualTo: user.uid)
-        .limit(1)
-        .get();
-    if (sSnap.docs.isEmpty) return {};
-    final siswaId = sSnap.docs.first.id;
-    final gSnap = await fs
-        .collection('grade')
-        .where('student_id', isEqualTo: siswaId)
-        .get();
-    final Map<String, List<double>> accum = {};
-    for (final d in gSnap.docs) {
-      final data = d.data();
-      final subject = (data['subject'] ?? 'Umum') as String;
-      final akhir = (data['akhir'] ?? data['final'] ?? 0) as num;
-      accum.putIfAbsent(subject, () => []).add(akhir.toDouble());
-    }
-    return {
-      for (final e in accum.entries)
-        e.key: (e.value.reduce((a, b) => a + b) / e.value.length),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
+    // For demo, override theme based on isDarkMode
+    final theme = isDarkMode ? ThemeData.dark() : ThemeData.light();
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF12121D)
-          : const Color(0xFFF7F8FF),
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            _buildHeader(isMobile),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Pengumuman ditampilkan langsung di halaman (sama seperti dashboard guru)
-                  Consumer<AnnouncementProvider>(
-                    builder: (context, announcementProvider, child) {
-                      if (announcementProvider.loading)
-                        return const Center(child: CircularProgressIndicator());
-                      final userRole =
-                          context.read<app_auth.AuthProvider>().current?.role ??
-                          'siswa';
-                      final announcements = announcementProvider.items
-                          .where((a) {
-                            final aud = (a['audience'] ?? 'all') as String;
-                            return aud == 'all' || aud == userRole;
-                          })
-                          .take(5)
-                          .toList();
-                      if (announcements.isEmpty) return const SizedBox.shrink();
+    return Theme(
+      data: theme.copyWith(
+        textTheme: GoogleFonts.poppinsTextTheme(theme.textTheme),
+        colorScheme: theme.colorScheme.copyWith(
+          primary: Colors.deepPurpleAccent,
+          secondary: Colors.indigoAccent,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: theme.brightness == Brightness.dark
+            ? const Color(0xFF121212)
+            : const Color(0xFFF7F8FF),
+        body: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _buildHeader(isMobile, theme),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Consumer<AnnouncementProvider>(
+                      builder: (context, announcementProvider, child) {
+                        if (announcementProvider.loading) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final userRole =
+                            context
+                                .read<app_auth.AuthProvider>()
+                                .current
+                                ?.role ??
+                            'siswa';
+                        final announcements = announcementProvider.items
+                            .where((a) {
+                              final aud = (a['audience'] ?? 'all') as String;
+                              return aud == 'all' || aud == userRole;
+                            })
+                            .take(5)
+                            .toList();
+                        if (announcements.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 6),
-                          Text(
-                            "Pengumuman",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black87,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Pengumuman",
+                              style: GoogleFonts.poppins(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: isMobile ? 160 : 200,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: announcements.length,
-                              padding: const EdgeInsets.only(right: 16),
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, index) {
-                                final a = announcements[index];
-                                final cardWidth = isMobile
-                                    ? MediaQuery.of(context).size.width * 0.78
-                                    : (MediaQuery.of(context).size.width - 96) /
-                                          3;
-                                return SizedBox(
-                                  width: cardWidth,
-                                  child: Card(
-                                    elevation: 3,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            a['title'] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Expanded(
-                                            child: Text(
-                                              a['content'] ?? '',
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              height: isMobile ? 170 : 220,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: announcements.length,
+                                padding: const EdgeInsets.only(right: 16),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 16),
+                                itemBuilder: (context, index) {
+                                  final a = announcements[index];
+                                  final cardWidth = isMobile
+                                      ? MediaQuery.of(context).size.width * 0.78
+                                      : (MediaQuery.of(context).size.width -
+                                                96) /
+                                            3;
+                                  return SizedBox(
+                                    width: cardWidth,
+                                    child: Card(
+                                      elevation: 6,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(14),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              a['title'] ?? '',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                              maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              maxLines: 4,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 10),
+                                            Expanded(
+                                              child: Text(
+                                                a['content'] ?? '',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 14,
+                                                  color:
+                                                      theme.brightness ==
+                                                          Brightness.dark
+                                                      ? Colors.grey[300]
+                                                      : Colors.grey[700],
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 4,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 18),
-                  // Compact Grafik Nilai preview on dashboard
-                  _buildGrafikPreview(isMobile),
-
-                  const SizedBox(height: 18),
-                  // Menu header moved after Grafik Nilai
-                  Text(
-                    "Menu",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Menu section (jadwal & rapor)
-                  _buildMenuCard(
-                    color: Colors.indigo,
-                    icon: Icons.schedule,
-                    title: "Lihat Jadwal",
-                    subtitle: "Lihat jadwal pelajaran Anda",
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const LihatJadwalSiswaPage(),
+                    const SizedBox(height: 22),
+                    _buildGrafikPreview(isMobile),
+                    const SizedBox(height: 28),
+                    Text(
+                      "Menu",
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
                       ),
                     ),
-                  ),
-                  _buildMenuCard(
-                    color: Colors.indigo,
-                    icon: Icons.receipt_long,
-                    title: "Lihat Nilai / Rapor",
-                    subtitle: "Lihat rapor dan detail nilai Anda",
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RaporPage()),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  const SizedBox(height: 28),
-                  Center(
-                    child: Text(
-                      "© 2025 Aplikasi Sekolah",
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.blueGrey[300]
-                            : Colors.grey[700],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(height: 14),
+                    _buildMenuCard(
+                      color: Colors.indigo,
+                      icon: Icons.schedule,
+                      title: "Lihat Jadwal",
+                      subtitle: "Lihat jadwal pelajaran Anda",
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LihatJadwalSiswaPage(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                ],
+                    _buildMenuCard(
+                      color: Colors.indigo,
+                      icon: Icons.receipt_long,
+                      title: "Lihat Nilai / Rapor",
+                      subtitle: "Lihat rapor dan detail nilai Anda",
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RaporPage()),
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+                    Center(
+                      child: Text(
+                        "© 2025 Aplikasi Sekolah",
+                        style: GoogleFonts.poppins(
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.blueGrey[300]
+                              : Colors.grey[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,13 +1,10 @@
-# Modernize GrafikNilaiPage Design
-
-## Implementation Steps
-- [x] Import fl_chart package in grafik_nilai_page.dart
-- [ ] Add overall summary card widget at the top showing total average
-- [ ] Implement bar chart widget using fl_chart for subject averages
-- [ ] Apply neumorphism effects to subject cards (enhanced shadows, gradients)
-- [ ] Improve spacing and padding throughout the layout
-- [ ] Enhance typography with better font weights and sizes
-- [ ] Add subtle entrance animations for cards and chart
-- [ ] Improve color schemes and visual hierarchy
-- [ ] Ensure responsive design for different screen sizes
-- [ ] Test accessibility (color contrast, touch targets)
+- [ ] Add state variables for statistics (totalSubjects, averageScore, highestScore, lowestScore)
+- [ ] Calculate statistics in _loadData after loading _nilai
+- [ ] Remove app bar from all return statements
+- [ ] Add _buildHeader method similar to admin dashboard
+- [ ] Add _buildStatisticsCard method similar to admin dashboard
+- [ ] Change Scaffold backgroundColor to match admin dashboard
+- [ ] Wrap body in SafeArea with ListView
+- [ ] Add statistics section with 4 cards
+- [ ] Style student info as a statistics card
+- [ ] Improve PDF preview card styling

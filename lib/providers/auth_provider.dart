@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,7 @@ import 'package:uasmobile/models/user.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSub;
 
   AppUser? _current;
   AppUser? get current => _current;
@@ -23,26 +25,45 @@ class AuthProvider extends ChangeNotifier {
     try {
       final user = _auth.currentUser; // [web:32]
       if (user != null) {
-        final doc = await FirebaseFirestore.instance
+        // start a realtime listener so changes (e.g. admin updating username)
+        // are reflected immediately in the app
+        _userSub?.cancel();
+        _userSub = FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          final data = doc.data()!;
-          _current = AppUser(
-            id: null,
-            email: data['email'] ?? user.email ?? '',
-            passwordHash: '',
-            salt: '',
-            role: data['role'] ?? 'siswa',
-            username: (data['username'] ?? data['name']) as String?,
-          );
-        }
+            .snapshots()
+            .listen(
+              (doc) {
+                if (doc.exists && doc.data() != null) {
+                  final data = doc.data()!;
+                  _current = AppUser(
+                    id: null,
+                    email: (data['email'] ?? user.email ?? '') as String,
+                    passwordHash: '',
+                    salt: '',
+                    role: (data['role'] ?? 'siswa') as String,
+                    username: (data['username'] ?? data['name']) as String?,
+                  );
+                } else {
+                  _current = null;
+                }
+                _loading = false;
+                notifyListeners();
+              },
+              onError: (err) {
+                _error = 'Gagal memuat profil: $err';
+                _loading = false;
+                notifyListeners();
+              },
+            );
       } else {
         _current = null;
+        _loading = false;
+        notifyListeners();
       }
-    } finally {
+    } catch (e) {
       _loading = false;
+      _error = 'Gagal memuat sesi: $e';
       notifyListeners();
     }
   }
@@ -85,6 +106,32 @@ class AuthProvider extends ChangeNotifier {
         role: role,
         username: email.split('@')[0],
       );
+      // start realtime listener for this new user
+      try {
+        final firebaseUser = _auth.currentUser;
+        if (firebaseUser != null) {
+          _userSub?.cancel();
+          _userSub = FirebaseFirestore.instance
+              .collection('users')
+              .doc(firebaseUser.uid)
+              .snapshots()
+              .listen((doc) {
+                if (doc.exists && doc.data() != null) {
+                  final data = doc.data()!;
+                  _current = AppUser(
+                    id: null,
+                    email:
+                        (data['email'] ?? firebaseUser.email ?? '') as String,
+                    passwordHash: '',
+                    salt: '',
+                    role: (data['role'] ?? role) as String,
+                    username: (data['username'] ?? data['name']) as String?,
+                  );
+                }
+                notifyListeners();
+              });
+        }
+      } catch (_) {}
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -171,6 +218,32 @@ class AuthProvider extends ChangeNotifier {
         role: role,
         username: (emailStored.split('@').first),
       );
+      // start realtime listener for logged-in user
+      try {
+        final firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          _userSub?.cancel();
+          _userSub = FirebaseFirestore.instance
+              .collection('users')
+              .doc(firebaseUser.uid)
+              .snapshots()
+              .listen((doc) {
+                if (doc.exists && doc.data() != null) {
+                  final data = doc.data()!;
+                  _current = AppUser(
+                    id: null,
+                    email:
+                        (data['email'] ?? firebaseUser.email ?? '') as String,
+                    passwordHash: '',
+                    salt: '',
+                    role: (data['role'] ?? role) as String,
+                    username: (data['username'] ?? data['name']) as String?,
+                  );
+                }
+                notifyListeners();
+              });
+        }
+      } catch (_) {}
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -208,6 +281,11 @@ class AuthProvider extends ChangeNotifier {
   // ================== LOGOUT ==================
   Future<void> logout() async {
     _current = null;
+    // cancel realtime listener
+    try {
+      await _userSub?.cancel();
+    } catch (_) {}
+    _userSub = null;
     await _auth.signOut(); // [web:32]
     notifyListeners();
   }
