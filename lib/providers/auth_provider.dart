@@ -35,6 +35,7 @@ class AuthProvider extends ChangeNotifier {
             passwordHash: '',
             salt: '',
             role: data['role'] ?? 'siswa',
+            username: (data['username'] ?? data['name']) as String?,
           );
         }
       } else {
@@ -54,8 +55,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _error = null;
     try {
-      final cred = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       ); // [web:32]
@@ -71,11 +71,11 @@ class AuthProvider extends ChangeNotifier {
           .collection('users')
           .doc(firebaseUser.uid)
           .set({
-        'email': email.trim(),
-        'role': role,
-        'username': email.split('@')[0],
-        'created_at': FieldValue.serverTimestamp(),
-      });
+            'email': email.trim(),
+            'role': role,
+            'username': email.split('@')[0],
+            'created_at': FieldValue.serverTimestamp(),
+          });
 
       _current = AppUser(
         id: null,
@@ -83,6 +83,7 @@ class AuthProvider extends ChangeNotifier {
         passwordHash: '',
         salt: '',
         role: role,
+        username: email.split('@')[0],
       );
       notifyListeners();
       return true;
@@ -142,9 +143,18 @@ class AuthProvider extends ChangeNotifier {
           notifyListeners();
           return false;
         }
+        // if doc exists try to get username too
+        final username = (data['username'] ?? data['name']) as String?;
+        _current = AppUser(
+          id: null,
+          email: emailStored,
+          passwordHash: '',
+          salt: '',
+          role: role,
+          username: username,
+        );
       } else {
-        final local =
-            (firebaseUser.email ?? '').split('@').first.toLowerCase();
+        final local = (firebaseUser.email ?? '').split('@').first.toLowerCase();
         if (local.contains('admin')) {
           role = 'admin';
         } else {
@@ -152,13 +162,14 @@ class AuthProvider extends ChangeNotifier {
         }
         emailStored = firebaseUser.email ?? '';
       }
-
-      _current = AppUser(
+      // if _current wasn't set from doc above, set it now
+      _current ??= AppUser(
         id: null,
         email: emailStored,
         passwordHash: '',
         salt: '',
         role: role,
+        username: (emailStored.split('@').first),
       );
       notifyListeners();
       return true;

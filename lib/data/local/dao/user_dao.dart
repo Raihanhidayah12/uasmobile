@@ -11,6 +11,7 @@ class AppUser {
   final String passwordHash;
   final String salt;
   final String role;
+  final String? username;
   String? password; // hanya dipakai waktu register/login
 
   AppUser({
@@ -19,24 +20,27 @@ class AppUser {
     required this.passwordHash,
     required this.salt,
     required this.role,
+    this.username,
     this.password,
   });
 
   factory AppUser.fromMap(Map<String, Object?> map) => AppUser(
-        id: map['id'] as int?,
-        email: map['email'] as String,
-        passwordHash: map['password_hash'] as String,
-        salt: map['salt'] as String,
-        role: map['role'] as String,
-      );
+    id: map['id'] as int?,
+    email: map['email'] as String,
+    passwordHash: map['password_hash'] as String,
+    salt: map['salt'] as String,
+    role: map['role'] as String,
+    username: map['username'] as String?,
+  );
 
   Map<String, Object?> toMap() => {
-        'id': id,
-        'email': email,
-        'password_hash': passwordHash,
-        'salt': salt,
-        'role': role,
-      };
+    'id': id,
+    'email': email,
+    'password_hash': passwordHash,
+    'salt': salt,
+    'role': role,
+    if (username != null) 'username': username,
+  };
 }
 
 class UserDao {
@@ -56,7 +60,11 @@ class UserDao {
 
   Future<AppUser?> findByEmail(String email) async {
     final db = await AppDb().database;
-    final rows = await db.query('users', where: 'email = ?', whereArgs: [email]);
+    final rows = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
     return rows.isEmpty ? null : AppUser.fromMap(rows.first);
   }
 
@@ -76,7 +84,7 @@ class UserDao {
     final db = await AppDb().database;
     return db.insert(
       'users',
-      user.toMap()..remove('id'),  // biar id autoincrement
+      user.toMap()..remove('id'), // biar id autoincrement
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }
@@ -93,12 +101,7 @@ class UserDao {
 
   Future<int> updateRole(int id, String role) async {
     final db = await AppDb().database;
-    return db.update(
-      'users',
-      {'role': role},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.update('users', {'role': role}, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> delete(int id) async {
